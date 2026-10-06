@@ -1,0 +1,627 @@
+{
+  "formatVersion": 1,
+  "description": "Pares de respuestas HTTP y resultados esperados del SDK. Valores ilustrativos; los cuerpos y headers son datos JSON.",
+  "cases": [
+    {
+      "id": "http-400-invalid-request",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 400,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-400",
+            "executionId": "exec-400",
+            "durationMs": 1,
+            "error": {
+              "code": "invalid_request",
+              "description": "solicitud inválida"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "BadRequestError",
+        "code": "invalid_request",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-401-refresh-once",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "responses": [
+        {
+          "status": 401,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-401-a",
+            "executionId": "exec-401-a",
+            "durationMs": 1,
+            "error": {
+              "code": "unauthorized",
+              "description": "credencial ausente"
+            }
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "etag": "\"cat-v1\"",
+            "cache-control": "private, max-age=0, must-revalidate"
+          },
+          "body": {
+            "data": { "catalogVersion": "cat-v1", "marks": [] },
+            "apiRequestId": "req-401-b",
+            "executionId": "exec-401-b",
+            "durationMs": 2
+          }
+        }
+      ],
+      "expected": {
+        "kind": "value",
+        "value": { "catalogVersion": "cat-v1", "marks": [] },
+        "tokenRefreshes": 1,
+        "retry": { "retryable": true, "maxRetries": 1 }
+      }
+    },
+    {
+      "id": "http-403-forbidden",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "responses": [
+        {
+          "status": 403,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-403",
+            "executionId": "exec-403",
+            "durationMs": 1,
+            "error": {
+              "code": "forbidden",
+              "description": "scope insuficiente"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "PermissionDeniedError",
+        "code": "forbidden",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-403-client-suspended",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 403,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-403-s",
+            "executionId": "exec-403-s",
+            "durationMs": 1,
+            "error": {
+              "code": "client_suspended",
+              "description": "cliente suspendido"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "PermissionDeniedError",
+        "code": "client_suspended",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-404-valuation",
+      "request": { "method": "GET", "path": "/v1/vehicle-valuation/unknown" },
+      "responses": [
+        {
+          "status": 404,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-404-v",
+            "executionId": "exec-404-v",
+            "durationMs": 1,
+            "error": {
+              "code": "invalid_request",
+              "description": "tasación no encontrada"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "NotFoundError",
+        "code": "invalid_request",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-404-mark",
+      "request": { "method": "GET", "path": "/v1/catalog/unknown-mark" },
+      "responses": [
+        {
+          "status": 404,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-404-m",
+            "executionId": "exec-404-m",
+            "durationMs": 1,
+            "error": {
+              "code": "mark_not_found",
+              "description": "marca no encontrada"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "NotFoundError",
+        "code": "mark_not_found",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-404-model",
+      "request": {
+        "method": "GET",
+        "path": "/v1/catalog/toyota/unknown-model"
+      },
+      "responses": [
+        {
+          "status": 404,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-404-model",
+            "executionId": "exec-404-model",
+            "durationMs": 1,
+            "error": {
+              "code": "model_not_found",
+              "description": "modelo no encontrado"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "NotFoundError",
+        "code": "model_not_found",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-409-idempotency-conflict",
+      "request": {
+        "method": "POST",
+        "path": "/v1/vehicle-valuation",
+        "headers": { "Idempotency-Key": "order-1" }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-409",
+            "executionId": "exec-409",
+            "durationMs": 1,
+            "error": {
+              "code": "invalid_request",
+              "description": "Idempotency-Key ya usada con otra solicitud"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "ConflictError",
+        "code": "invalid_request",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-422-data-unavailable-reserved",
+      "contractStatus": "reserved; not emitted by the reviewed request handler",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 422,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-422",
+            "executionId": "exec-422",
+            "durationMs": 1,
+            "error": {
+              "code": "data_unavailable",
+              "description": "datos de mercado no disponibles"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "UnprocessableEntityError",
+        "code": "data_unavailable",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-429-credential-quota",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 429,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-429-q",
+            "executionId": "exec-429-q",
+            "durationMs": 1,
+            "error": {
+              "code": "quota_exceeded",
+              "description": "cuota diaria de la credencial agotada"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "QuotaExceededError",
+        "code": "quota_exceeded",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-429-company-quota",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 429,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-429-c",
+            "executionId": "exec-429-c",
+            "durationMs": 1,
+            "error": {
+              "code": "company_quota_exceeded",
+              "description": "cuota diaria de la empresa agotada"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "QuotaExceededError",
+        "code": "company_quota_exceeded",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-429-gateway-without-envelope",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "responses": [
+        {
+          "status": 429,
+          "headers": { "content-type": "text/plain" },
+          "body": "Too Many Requests"
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "RateLimitError",
+        "code": null,
+        "retry": {
+          "retryable": true,
+          "maxRetries": 2,
+          "strategy": "exponential-backoff-with-jitter"
+        }
+      }
+    },
+    {
+      "id": "http-503-service-unavailable",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "responses": [
+        {
+          "status": 503,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-503",
+            "executionId": "exec-503",
+            "durationMs": 1,
+            "error": {
+              "code": "service_unavailable",
+              "description": "servicio temporalmente no disponible"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "InternalServerError",
+        "code": "service_unavailable",
+        "retry": {
+          "retryable": true,
+          "maxRetries": 2,
+          "strategy": "exponential-backoff-with-jitter"
+        }
+      }
+    },
+    {
+      "id": "http-504-upstream-timeout",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "responses": [
+        {
+          "status": 504,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-504",
+            "executionId": "exec-504",
+            "durationMs": 1,
+            "error": {
+              "code": "upstream_timeout",
+              "description": "tiempo de espera agotado al consultar datos de mercado"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "InternalServerError",
+        "code": "upstream_timeout",
+        "retry": {
+          "retryable": true,
+          "maxRetries": 2,
+          "strategy": "exponential-backoff-with-jitter"
+        }
+      }
+    },
+    {
+      "id": "waiter-202-then-200",
+      "operation": "valuations.waitUntilComplete",
+      "request": { "method": "GET", "path": "/v1/vehicle-valuation/val-1" },
+      "responses": [
+        {
+          "status": 202,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": { "valuationId": "val-1", "status": "RUNNING" },
+            "apiRequestId": "req-wait-a",
+            "executionId": "exec-wait-a",
+            "durationMs": 1
+          }
+        },
+        {
+          "status": 200,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": {
+              "valuationId": "val-1",
+              "status": "COMPLETED",
+              "result": {
+                "schemaVersion": "general-price-result-v1",
+                "data": {
+                  "vehicle": {
+                    "mark": "Toyota",
+                    "model": "Yaris",
+                    "year": 2020,
+                    "version": "1.5",
+                    "versionResolution": "MATCHED",
+                    "versionApplied": true
+                  },
+                  "marketContext": {
+                    "region": "CL",
+                    "purchaseSellerType": "PERSON",
+                    "saleSellerType": "DEALER",
+                    "odometerKm": 50000
+                  },
+                  "purchase": {
+                    "sellerType": "PERSON",
+                    "qualityScore": 80,
+                    "options": []
+                  },
+                  "sale": {
+                    "sellerType": "DEALER",
+                    "qualityScore": 80,
+                    "options": []
+                  },
+                  "grossMarginEstimate": {
+                    "qualityScore": 80,
+                    "disclaimer": "illustrative",
+                    "maxMargin": {
+                      "purchasePercentile": 25,
+                      "salePercentile": 75,
+                      "purchasePriceCLP": 7500000,
+                      "salePriceCLP": 10000000,
+                      "marginCLP": 2500000,
+                      "marginPercent": 33.3
+                    },
+                    "minMargin": {
+                      "purchasePercentile": 75,
+                      "salePercentile": 25,
+                      "purchasePriceCLP": 8500000,
+                      "salePriceCLP": 9000000,
+                      "marginCLP": 500000,
+                      "marginPercent": 5.9
+                    }
+                  },
+                  "freshness": {
+                    "lastValidLogicalDay": "2026-10-05",
+                    "ageDays": 1,
+                    "status": "CURRENT"
+                  },
+                  "methodology": {
+                    "qualityVersion": "v1",
+                    "smoothingVersion": "v1",
+                    "algorithmVersion": "v1"
+                  }
+                }
+              }
+            },
+            "apiRequestId": "req-wait-b",
+            "executionId": "exec-wait-b",
+            "durationMs": 1
+          }
+        }
+      ],
+      "expected": {
+        "kind": "value",
+        "value": {
+          "valuationId": "val-1",
+          "status": "COMPLETED",
+          "result": {
+            "schemaVersion": "general-price-result-v1",
+            "data": {
+              "vehicle": {
+                "mark": "Toyota",
+                "model": "Yaris",
+                "year": 2020,
+                "version": "1.5",
+                "versionResolution": "MATCHED",
+                "versionApplied": true
+              },
+              "marketContext": {
+                "region": "CL",
+                "purchaseSellerType": "PERSON",
+                "saleSellerType": "DEALER",
+                "odometerKm": 50000
+              },
+              "purchase": {
+                "sellerType": "PERSON",
+                "qualityScore": 80,
+                "options": []
+              },
+              "sale": {
+                "sellerType": "DEALER",
+                "qualityScore": 80,
+                "options": []
+              },
+              "grossMarginEstimate": {
+                "qualityScore": 80,
+                "disclaimer": "illustrative",
+                "maxMargin": {
+                  "purchasePercentile": 25,
+                  "salePercentile": 75,
+                  "purchasePriceCLP": 7500000,
+                  "salePriceCLP": 10000000,
+                  "marginCLP": 2500000,
+                  "marginPercent": 33.3
+                },
+                "minMargin": {
+                  "purchasePercentile": 75,
+                  "salePercentile": 25,
+                  "purchasePriceCLP": 8500000,
+                  "salePriceCLP": 9000000,
+                  "marginCLP": 500000,
+                  "marginPercent": 5.9
+                }
+              },
+              "freshness": {
+                "lastValidLogicalDay": "2026-10-05",
+                "ageDays": 1,
+                "status": "CURRENT"
+              },
+              "methodology": {
+                "qualityVersion": "v1",
+                "smoothingVersion": "v1",
+                "algorithmVersion": "v1"
+              }
+            }
+          }
+        },
+        "polls": 2,
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "acceptance-poll-after-ms",
+      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "responses": [
+        {
+          "status": 202,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": {
+              "valuationId": "val-2",
+              "status": "PENDING",
+              "pollAfterMs": 2000
+            },
+            "apiRequestId": "req-202",
+            "executionId": "exec-202",
+            "durationMs": 1
+          }
+        }
+      ],
+      "expected": {
+        "kind": "value",
+        "value": {
+          "valuationId": "val-2",
+          "status": "PENDING",
+          "pollAfterMs": 2000
+        },
+        "waiterInitialDelayMs": 2000,
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "waiter-terminal-failure",
+      "operation": "valuations.waitUntilComplete",
+      "request": { "method": "GET", "path": "/v1/vehicle-valuation/val-3" },
+      "responses": [
+        {
+          "status": 200,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": {
+              "valuationId": "val-3",
+              "status": "FAILED",
+              "failure": {
+                "code": "vehicle_not_found",
+                "description": "vehículo no encontrado"
+              }
+            },
+            "apiRequestId": "req-failed",
+            "executionId": "exec-failed",
+            "durationMs": 1
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "ValuationFailedError",
+        "code": "vehicle_not_found",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "network-failure",
+      "request": { "method": "GET", "path": "/v1/catalog" },
+      "transportFailure": { "kind": "connection", "message": "socket reset" },
+      "expected": {
+        "kind": "error",
+        "class": "AutotiaConnectionError",
+        "code": null,
+        "retry": {
+          "retryable": true,
+          "maxRetries": 2,
+          "strategy": "exponential-backoff-with-jitter"
+        }
+      }
+    }
+  ]
+}

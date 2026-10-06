@@ -1,0 +1,790 @@
+openapi: 3.0.3
+info:
+  title: Autotia Vehicle Valuation API
+  version: 1.0.0
+  description: |
+    API B2B de tasación vehicular de Autotia (Chile). Este archivo es la copia del contrato que usan los SDK
+    oficiales para escribir sus tipos y su suite de conformidad; no se genera código a partir de él.
+
+    - La tasación es asíncrona: `POST /v1/vehicle-valuation` acepta la solicitud y
+      `GET /v1/vehicle-valuation/{valuationId}` consulta el estado hasta un estado terminal.
+    - Todas las respuestas de la API usan el envelope estándar `data`, `apiRequestId`, `executionId`,
+      `durationMs`; `error` solo aparece en errores y `pageToken` no se usa en v1.
+    - La pasarela de entrada puede rechazar una solicitud (401 por token ausente o inválido, 403 por scope
+      insuficiente, 429 por límite de tasa) **antes** de invocar el servicio. Esas respuestas pueden no usar el
+      envelope y su cuerpo no es parte del contrato: el cliente debe clasificarlas por estado HTTP.
+    - Los valores de dinero están en CLP.
+servers:
+  - url: https://api.dev.autotia.com/public-secure/shop-b2b
+    description: URL esperada de desarrollo. La IaC configura el mapping y obtiene el dominio personalizado de la configuración del stage.
+  - url: https://api.autotia.com/public-secure/shop-b2b
+    description: URL esperada de producción. La IaC configura el mapping y obtiene el dominio personalizado de la configuración del stage; disponibilidad del entorno pendiente de verificar.
+security:
+  - oauth2ClientCredentials: []
+tags:
+  - name: valuations
+    description: Tasación vehicular asíncrona.
+  - name: catalog
+    description: Catálogo de marcas, modelos, años y versiones.
+paths:
+  /v1/vehicle-valuation:
+    post:
+      tags: [valuations]
+      operationId: createValuation
+      summary: Solicita una tasación
+      description: |
+        Requiere el scope `https://api.autotia.com/reports/vehicle-valuation.read`.
+
+        `year` y `odometerKm` son obligatorios y deben ser enteros JSON; sin ellos responde 400. El servicio no
+        valida de forma síncrona el resto de los campos: una combinación de vehículo inválida puede terminar
+        luego en un estado `FAILED`.
+
+        `Idempotency-Key` es opcional. Sin ella cada POST es una solicitud nueva. Con ella, repetir la misma
+        clave y el mismo cuerpo reutiliza la tasación existente (la respuesta refleja su estado actual, puede ser
+        200 si ya terminó) y repetir la clave con otro cuerpo responde 409. El registro de idempotencia dura
+        24 horas. El largo máximo de la clave no está confirmado; se recomienda una clave corta y imprimible.
+
+        Si falla la comunicación interna después de aceptar la solicitud, la respuesta sigue siendo 202
+        `PENDING`: el `valuationId` devuelto es el que se consulta y puede resolverse luego a otro identificador
+        en las respuestas del GET.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Clave de idempotencia estable entre reintentos de la misma solicitud.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValuationRequest'
+      responses:
+        '202':
+          description: Solicitud aceptada y en proceso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptanceEnvelope'
+        '200':
+          description: |
+            Repetición idempotente de una solicitud cuya tasación ya terminó. Devuelve el estado terminal con el
+            mismo shape que el GET: `COMPLETED` con `result` o `FAILED` con `failure`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: |
+            Código reservado `data_unavailable` en el catálogo público. El handler revisado no emite actualmente
+            este estado HTTP; la indisponibilidad de datos se informa como fallo terminal dentro de una respuesta
+            200 de polling.
+          x-currently-emitted: false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: La `Idempotency-Key` ya se usó con un cuerpo distinto. Código `invalid_request`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/vehicle-valuation/{valuationId}:
+    get:
+      tags: [valuations]
+      operationId: getValuation
+      summary: Consulta el estado de una tasación
+      description: |
+        Requiere el scope `https://api.autotia.com/reports/vehicle-valuation.read`.
+
+        Mientras la tasación está en proceso responde 202 con `PENDING` o `RUNNING` y **sin** `pollAfterMs`
+        (el intervalo sugerido solo viaja en la respuesta del POST: 2000 ms). Al terminar responde 200 con
+        `COMPLETED` y `result`, o con `FAILED` y `failure`: un fallo terminal es una respuesta exitosa del
+        polling. La consulta solo lee; no inicia cálculos. Una tasación de otra empresa o inexistente se informa
+        igual: 404.
+      parameters:
+        - name: valuationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: La tasación sigue en proceso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusEnvelope'
+        '200':
+          description: La tasación terminó (`COMPLETED` o `FAILED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Tasación inexistente o de otra empresa. Código `invalid_request`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/catalog:
+    get:
+      tags: [catalog]
+      operationId: listMarks
+      summary: Lista las marcas
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Marcas del catálogo.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogMarksEnvelope'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /v1/catalog/{mark}:
+    get:
+      tags: [catalog]
+      operationId: listModels
+      summary: Lista los modelos de una marca
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      parameters:
+        - $ref: '#/components/parameters/Mark'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Modelos de la marca, con los años disponibles de cada uno.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogModelsEnvelope'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/CatalogNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /v1/catalog/{mark}/{model}:
+    get:
+      tags: [catalog]
+      operationId: listYears
+      summary: Lista los años de un modelo
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      parameters:
+        - $ref: '#/components/parameters/Mark'
+        - $ref: '#/components/parameters/Model'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Años disponibles del modelo.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogYearsEnvelope'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/CatalogNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /v1/catalog/{mark}/{model}/{year}:
+    get:
+      tags: [catalog]
+      operationId: listTrims
+      summary: Lista las versiones de un modelo y año
+      description: |
+        Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+        Un año válido sin versiones responde 200 con `trims` vacío. Un `year` no entero responde 404 con código
+        `invalid_request`.
+      parameters:
+        - $ref: '#/components/parameters/Mark'
+        - $ref: '#/components/parameters/Model'
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Versiones disponibles.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogTrimsEnvelope'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/CatalogNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+components:
+  securitySchemes:
+    oauth2ClientCredentials:
+      type: oauth2
+      description: |
+        OAuth 2.0 `client_credentials` con HTTP Basic (`client_id:client_secret`) y cuerpo
+        `application/x-www-form-urlencoded` (`grant_type=client_credentials&scope=...`). Respuesta:
+        `access_token`, `token_type` (`Bearer`) y `expires_in` en segundos. Cada ambiente tiene credenciales
+        propias. El tiempo de vida del token no está fijado por este contrato: usar siempre `expires_in`.
+        En desarrollo, el endpoint está confirmado por la configuración IaC. La configuración de producción define el mismo patrón, pero el entorno desplegado no fue verificado y su URL queda pendiente.
+      x-token-urls:
+        dev:
+          url: https://prdrpt-b2b-dev.auth.us-east-1.amazoncognito.com/oauth2/token
+          confirmed: true
+        prod:
+          status: pending
+          reason: No se confirmó el endpoint de token de un entorno de producción desplegado.
+      flows:
+        clientCredentials:
+          tokenUrl: https://prdrpt-b2b-dev.auth.us-east-1.amazoncognito.com/oauth2/token
+          scopes:
+            https://api.autotia.com/reports/vehicle-valuation.read: Solicitar y consultar tasaciones.
+            https://api.autotia.com/reports/vehicle-catalog.read: Consultar el catálogo vehicular.
+  parameters:
+    Mark:
+      name: mark
+      in: path
+      required: true
+      description: Clave (`key`) de la marca devuelta por el catálogo.
+      schema:
+        type: string
+    Model:
+      name: model
+      in: path
+      required: true
+      description: Clave (`key`) del modelo devuelta por el catálogo.
+      schema:
+        type: string
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag previo para revalidar. Si coincide, la respuesta es 304 sin cuerpo.
+      schema:
+        type: string
+  headers:
+    ETag:
+      description: Versión del catálogo entre comillas.
+      schema:
+        type: string
+    CacheControl:
+      description: Siempre `private, max-age=0, must-revalidate`.
+      schema:
+        type: string
+  responses:
+    NotModified:
+      description: El `ETag` enviado coincide con la versión vigente. Sin cuerpo.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+        Cache-Control:
+          $ref: '#/components/headers/CacheControl'
+    BadRequest:
+      description: JSON inválido o `year` u `odometerKm` ausentes o no enteros. Código `invalid_request`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: |
+        Token ausente, inválido o vencido. Lo normal es que lo emita la pasarela sin envelope (cuerpo no
+        contractual); si lo emite el servicio usa el código `unauthorized`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorOrGatewayBody'
+    Forbidden:
+      description: |
+        Scope insuficiente (la pasarela puede responder sin envelope) o credencial/empresa suspendida
+        (`client_suspended`; también `forbidden` si lo emite el servicio).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorOrGatewayBody'
+    CatalogNotFound:
+      description: |
+        Marca (`mark_not_found`) o modelo (`model_not_found`) inexistente, o ruta inválida (`invalid_request`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    TooManyRequests:
+      description: |
+        Dos casos con el mismo estado. (1) Cuota diaria agotada, con envelope y código `quota_exceeded`
+        (credencial) o `company_quota_exceeded` (empresa): no se resuelve reintentando de inmediato.
+        (2) Límite de tasa de la pasarela, normalmente sin envelope: se resuelve esperando y reintentando.
+        Límites de tasa: POST de tasación 1 solicitud por segundo (ráfaga 5); GET de estado 20 por segundo
+        (ráfaga 40); rutas de catálogo 50 por segundo (ráfaga 100 por ruta).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorOrGatewayBody'
+    ServiceUnavailable:
+      description: Falla temporal. Código `service_unavailable`. Reintentable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    GatewayTimeout:
+      description: Tiempo de espera agotado al consultar el catálogo. Código `upstream_timeout`. Reintentable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    EnvelopeMeta:
+      type: object
+      required: [apiRequestId, executionId, durationMs]
+      properties:
+        apiRequestId:
+          type: string
+          description: Identificador de la solicitud en la pasarela. Citarlo al contactar a soporte.
+        executionId:
+          type: string
+        durationMs:
+          type: integer
+          format: int64
+        pageToken:
+          type: string
+          description: No se usa en v1.
+    ErrorCode:
+      type: string
+      description: |
+        Vocabulario público de `error.code`. `data_unavailable` está reservado: hoy se informa solo dentro de
+        `data.failure` de una tasación terminal.
+      enum:
+        - invalid_request
+        - unauthorized
+        - forbidden
+        - client_suspended
+        - vehicle_not_found
+        - data_unavailable
+        - mark_not_found
+        - model_not_found
+        - quota_exceeded
+        - company_quota_exceeded
+        - service_unavailable
+        - upstream_timeout
+    ApiError:
+      type: object
+      required: [code, description]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        description:
+          type: string
+          description: Texto legible en español.
+    ErrorEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data, error]
+          properties:
+            data:
+              type: object
+              nullable: true
+              description: Siempre `null` en un error.
+            error:
+              $ref: '#/components/schemas/ApiError'
+    GatewayBody:
+      type: object
+      description: Cuerpo de una respuesta de la pasarela. No es contractual; puede venir vacío o con otro formato.
+      additionalProperties: true
+    ErrorOrGatewayBody:
+      oneOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+        - $ref: '#/components/schemas/GatewayBody'
+    ValuationRequest:
+      type: object
+      required: [year, odometerKm]
+      properties:
+        mark:
+          type: string
+          description: Texto (`text`) de la marca tal como lo devuelve el catálogo.
+        model:
+          type: string
+          description: Texto (`text`) del modelo tal como lo devuelve el catálogo.
+        year:
+          type: integer
+        version:
+          type: string
+          description: Texto (`text`) de la versión tal como lo devuelve el catálogo.
+        odometerKm:
+          type: integer
+          description: Kilometraje en kilómetros.
+    ValuationState:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED]
+    Acceptance:
+      type: object
+      required: [valuationId, status, pollAfterMs]
+      properties:
+        valuationId:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, RUNNING]
+        pollAfterMs:
+          type: integer
+          description: Intervalo sugerido antes de consultar el estado. Hoy es siempre 2000.
+    AcceptanceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/Acceptance'
+    FailureCode:
+      type: string
+      description: Códigos que puede tener un fallo terminal; cualquier otro se informa como `service_unavailable`.
+      enum:
+        - invalid_request
+        - vehicle_not_found
+        - data_unavailable
+        - service_unavailable
+        - upstream_timeout
+    Failure:
+      type: object
+      required: [code, description]
+      properties:
+        code:
+          $ref: '#/components/schemas/FailureCode'
+        description:
+          type: string
+    ValuationStatus:
+      type: object
+      description: |
+        `result` solo está presente en `COMPLETED` y `failure` solo en `FAILED`. `valuationId` puede diferir del
+        identificador usado para consultar cuando la aceptación devolvió una clave provisoria.
+      required: [valuationId, status]
+      properties:
+        valuationId:
+          type: string
+        status:
+          $ref: '#/components/schemas/ValuationState'
+        result:
+          $ref: '#/components/schemas/ValuationResult'
+        failure:
+          $ref: '#/components/schemas/Failure'
+    StatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/ValuationStatus'
+    ValuationResult:
+      type: object
+      required: [schemaVersion, data]
+      properties:
+        schemaVersion:
+          type: string
+          enum: [general-price-result-v1]
+        data:
+          $ref: '#/components/schemas/ValuationResultData'
+    ValuationResultData:
+      type: object
+      required: [vehicle, marketContext, purchase, sale, grossMarginEstimate, freshness, methodology]
+      properties:
+        vehicle:
+          $ref: '#/components/schemas/ResultVehicle'
+        marketContext:
+          $ref: '#/components/schemas/MarketContext'
+        purchase:
+          $ref: '#/components/schemas/PriceSide'
+        sale:
+          $ref: '#/components/schemas/PriceSide'
+        grossMarginEstimate:
+          $ref: '#/components/schemas/GrossMarginEstimate'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        methodology:
+          $ref: '#/components/schemas/Methodology'
+    ResultVehicle:
+      type: object
+      required: [mark, model, year, version, versionResolution, versionApplied]
+      properties:
+        mark:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        version:
+          type: string
+        canonicalVersion:
+          type: string
+          description: Versión canónica del catálogo; se omite si no se resolvió.
+        versionResolution:
+          type: string
+        versionApplied:
+          type: boolean
+    MarketContext:
+      type: object
+      required: [region, purchaseSellerType, saleSellerType, odometerKm]
+      properties:
+        region:
+          type: string
+        purchaseSellerType:
+          type: string
+        saleSellerType:
+          type: string
+        odometerKm:
+          type: integer
+    PriceSide:
+      type: object
+      required: [sellerType, qualityScore, options]
+      properties:
+        sellerType:
+          type: string
+        qualityScore:
+          type: integer
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceOption'
+    PriceOption:
+      type: object
+      required: [percentile, priceCLP]
+      properties:
+        percentile:
+          type: integer
+        priceCLP:
+          type: integer
+          format: int64
+    GrossMarginEstimate:
+      type: object
+      required: [qualityScore, disclaimer, maxMargin, minMargin]
+      properties:
+        qualityScore:
+          type: integer
+        disclaimer:
+          type: string
+        maxMargin:
+          $ref: '#/components/schemas/MarginRange'
+        minMargin:
+          $ref: '#/components/schemas/MarginRange'
+    MarginRange:
+      type: object
+      required: [purchasePercentile, salePercentile, purchasePriceCLP, salePriceCLP, marginCLP, marginPercent]
+      properties:
+        purchasePercentile:
+          type: integer
+        salePercentile:
+          type: integer
+        purchasePriceCLP:
+          type: integer
+          format: int64
+        salePriceCLP:
+          type: integer
+          format: int64
+        marginCLP:
+          type: integer
+          format: int64
+        marginPercent:
+          type: number
+          format: double
+    Freshness:
+      type: object
+      required: [lastValidLogicalDay, ageDays, status]
+      properties:
+        lastValidLogicalDay:
+          type: string
+          description: Fecha lógica `YYYY-MM-DD`.
+        ageDays:
+          type: integer
+        status:
+          type: string
+    Methodology:
+      type: object
+      required: [qualityVersion, smoothingVersion, algorithmVersion]
+      properties:
+        qualityVersion:
+          type: string
+        smoothingVersion:
+          type: string
+        algorithmVersion:
+          type: string
+    CatalogRef:
+      type: object
+      required: [key, text]
+      properties:
+        key:
+          type: string
+          description: Clave para usar en las rutas del catálogo.
+        text:
+          type: string
+          description: Texto para usar en el cuerpo de una solicitud de tasación.
+    CatalogMarks:
+      type: object
+      required: [catalogVersion, marks]
+      properties:
+        catalogVersion:
+          type: string
+        marks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogRef'
+    CatalogMarksEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CatalogMarks'
+    CatalogModel:
+      allOf:
+        - $ref: '#/components/schemas/CatalogRef'
+        - type: object
+          required: [years]
+          properties:
+            years:
+              type: array
+              items:
+                type: integer
+    CatalogModels:
+      type: object
+      required: [catalogVersion, mark, models]
+      properties:
+        catalogVersion:
+          type: string
+        mark:
+          $ref: '#/components/schemas/CatalogRef'
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogModel'
+    CatalogModelsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CatalogModels'
+    CatalogYears:
+      type: object
+      required: [catalogVersion, mark, model, years]
+      properties:
+        catalogVersion:
+          type: string
+        mark:
+          $ref: '#/components/schemas/CatalogRef'
+        model:
+          $ref: '#/components/schemas/CatalogRef'
+        years:
+          type: array
+          items:
+            type: integer
+    CatalogYearsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CatalogYears'
+    CatalogTrims:
+      type: object
+      required: [catalogVersion, mark, model, year, trims]
+      properties:
+        catalogVersion:
+          type: string
+        mark:
+          $ref: '#/components/schemas/CatalogRef'
+        model:
+          $ref: '#/components/schemas/CatalogRef'
+        year:
+          type: integer
+        trims:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogRef'
+    CatalogTrimsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/CatalogTrims'

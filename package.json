@@ -1,0 +1,38 @@
+{
+  "name": "@autotia/vehicle-valuation-sdk-legacy",
+  "version": "0.1.0",
+  "description": "SDK CommonJS para la API de tasación vehicular de Autotia",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=11.15.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node test/run.js",
+    "test:node11": "npm run build && docker run --rm -v \"$PWD:/work\" -w /work node:11.15.0-alpine node test/run.js",
+    "lint": "biome check src test scripts",
+    "check:package": "publint && attw --pack . --profile strict",
+    "smoke": "node scripts/smoke.js"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "11.15.0",
+    "publint": "0.3.12",
+    "typescript": "5.7.3"
+  }
+}
