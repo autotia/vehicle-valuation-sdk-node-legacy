@@ -129,3 +129,17 @@ Todos los errores heredan de `AutotiaError`, que expone `status`, `code`, `apiRe
 ## Licencia
 
 [MIT](LICENSE)
+
+## Publicación (mantenedores)
+
+La publicación se ejecuta al enviar un tag `v<version>` cuyo commit pertenece a `main`. Antes de crear el tag,
+actualiza `version` en `package.json` y asegúrate de que coincida exactamente con el tag.
+
+En GitHub, crea el environment `npm` y permite en él los tags `v*`. En npm, cuando el paquete ya exista, configura
+Trusted Publisher para este repositorio y el workflow `publish.yml`, con el environment `npm`. El workflow necesita
+Node.js 24 y npm 11.5.1 o superior para publicar mediante OIDC.
+
+Para la primera publicación, el paquete aún no puede tener Trusted Publisher configurado. Agrega temporalmente el
+secreto `NPM_BOOTSTRAP_TOKEN` al environment `npm`; el workflow lo usará para publicar con provenance. Inmediatamente
+después de configurar Trusted Publisher para el paquete en npm, elimina ese secreto de GitHub y realiza una
+publicación con OIDC dentro de los dos días siguientes para validar la configuración.

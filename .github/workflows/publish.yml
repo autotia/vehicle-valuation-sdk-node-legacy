@@ -1,0 +1,86 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Publish package
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Verify package version matches tag
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+            const tagVersion = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            if (version !== tagVersion) {
+              console.error(`Tag version ${tagVersion} does not match package version ${version}`);
+              process.exit(1);
+            }
+          '
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install npm CLI with trusted publishing support
+        run: npm install --global npm@11.5.1
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Test on Node.js 11.15
+        run: docker run --rm -v "$PWD:/work" -w /work node:11.15.0-alpine node test/run.js
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check package
+        run: npm run check:package
+
+      - name: Check for bootstrap token
+        id: bootstrap
+        env:
+          NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: |
+          if [[ -n "$NPM_BOOTSTRAP_TOKEN" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish with bootstrap token
+        if: ${{ steps.bootstrap.outputs.enabled == 'true' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Publish with trusted publishing
+        if: ${{ steps.bootstrap.outputs.enabled == 'false' }}
+        run: npm publish --access public
