@@ -6,7 +6,22 @@ import { CatalogResource } from "./resources/catalog";
 import { ValuationsResource } from "./resources/valuations";
 import { HttpsTransport } from "./transport/https";
 
-export * from "./core/errors";
+export {
+  AutotiaConnectionError,
+  AutotiaError,
+  AuthenticationError,
+  BadRequestError,
+  ConflictError,
+  InternalServerError,
+  NotFoundError,
+  PermissionDeniedError,
+  QuotaExceededError,
+  RateLimitError,
+  UnprocessableEntityError,
+  ValuationFailedError,
+  WaiterTimeoutError,
+  ErrorDetails,
+} from "./core/errors";
 export * from "./core/types";
 export * from "./resources/types";
 export { TokenProvider } from "./auth/token-provider";

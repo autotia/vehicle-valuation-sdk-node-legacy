@@ -64,23 +64,29 @@ jobs:
       - name: Check package
         run: npm run check:package
 
-      - name: Check for bootstrap token
-        id: bootstrap
+      - name: Check for bootstrap token and release tag
+        id: release_config
         env:
           NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
         run: |
           if [[ -n "$NPM_BOOTSTRAP_TOKEN" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "bootstrap_enabled=true" >> "$GITHUB_OUTPUT"
           else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "bootstrap_enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "tag_flag=--tag next" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_flag=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish with bootstrap token
-        if: ${{ steps.bootstrap.outputs.enabled == 'true' }}
+        if: ${{ steps.release_config.outputs.bootstrap_enabled == 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance ${{ steps.release_config.outputs.tag_flag }}
 
       - name: Publish with trusted publishing
-        if: ${{ steps.bootstrap.outputs.enabled == 'false' }}
-        run: npm publish --access public
+        if: ${{ steps.release_config.outputs.bootstrap_enabled == 'false' }}
+        run: npm publish --access public ${{ steps.release_config.outputs.tag_flag }}
