@@ -26,6 +26,7 @@ jobs:
 
       - name: Verify package version matches tag
         run: |
+          # shellcheck disable=SC2016
           node --input-type=module -e '
             import { readFileSync } from "node:fs";
             const { version } = JSON.parse(readFileSync("package.json", "utf8"));
@@ -46,8 +47,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install npm CLI with trusted publishing support
-        run: npm install --global npm@11.5.1
+      - name: Install npm CLI with staged publishing support
+        run: npm install --global npm@11.15.0
 
       - name: Build
         run: npm run build
@@ -85,7 +86,7 @@ jobs:
         if: ${{ steps.release_config.outputs.bootstrap_enabled == 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
-        run: npm publish --access public --provenance ${{ steps.release_config.outputs.tag_flag }}
+        run: npm stage publish --access public --provenance ${{ steps.release_config.outputs.tag_flag }}
 
       - name: Publish with trusted publishing
         if: ${{ steps.release_config.outputs.bootstrap_enabled == 'false' }}

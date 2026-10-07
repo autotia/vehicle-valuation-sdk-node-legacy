@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## [0.1.0-beta.1] - 2026-10-07
+
+- Primera pre-versión publicada (la versión 0.1.0-beta.0 no llegó a publicarse).
+
 ## [0.1.0-beta.0] - 2026-10-06
 
 - Implementación inicial del SDK CommonJS para Node.js 11.15 a 22.11.

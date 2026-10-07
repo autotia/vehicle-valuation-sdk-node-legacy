@@ -137,9 +137,11 @@ actualiza `version` en `package.json` y asegúrate de que coincida exactamente c
 
 En GitHub, crea el environment `npm` y permite en él los tags `v*`. En npm, cuando el paquete ya exista, configura
 Trusted Publisher para este repositorio y el workflow `publish.yml`, con el environment `npm`. El workflow necesita
-Node.js 24 y npm 11.5.1 o superior para publicar mediante OIDC.
+Node.js 24 y npm 11.15.0 o superior para publicar mediante OIDC o staged publishing.
 
-Para la primera publicación, el paquete aún no puede tener Trusted Publisher configurado. Agrega temporalmente el
-secreto `NPM_BOOTSTRAP_TOKEN` al environment `npm`; el workflow lo usará para publicar con provenance. Inmediatamente
-después de configurar Trusted Publisher para el paquete en npm, elimina ese secreto de GitHub y realiza una
-publicación con OIDC dentro de los dos días siguientes para validar la configuración.
+Para la primera publicación, el paquete aún no existe en npm y no puede tener Trusted Publisher configurado. Agrega
+temporalmente el secreto `NPM_BOOTSTRAP_TOKEN` al environment `npm`; el workflow lo usará para crear el paquete
+mediante staged publishing (`npm stage publish`) sin requerir 2FA durante el pipeline. La versión quedará en cola hasta
+que un mantenedor la apruebe con 2FA en npmjs.com (pestaña Staged Packages) o ejecutando `npm stage approve <stage-id>`.
+Inmediatamente después de aprobar el paquete y configurar Trusted Publisher en npm, elimina ese secreto de GitHub y
+realiza una publicación con OIDC dentro de los dos días siguientes para validar la configuración.
