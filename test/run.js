@@ -471,6 +471,19 @@ test("dist no contiene sintaxis ni APIs posteriores a ES2018/Node 11", async () 
   visit(distRoot);
 });
 
+test("metadatos: package.json tiene repository.url apuntando a github.com/autotia/vehicle-valuation-sdk-node-legacy", () => {
+  const pkgPath = path.resolve(__dirname, "../package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  assert.ok(pkg.repository, "package.json debe definir repository");
+  assert.ok(
+    typeof pkg.repository.url === "string" &&
+      pkg.repository.url.indexOf(
+        "github.com/autotia/vehicle-valuation-sdk-node-legacy",
+      ) !== -1,
+    `repository.url debe apuntar a github.com/autotia/vehicle-valuation-sdk-node-legacy, recibido: ${pkg.repository ? pkg.repository.url : undefined}`,
+  );
+});
+
 (async function main() {
   let failures = 0;
   let skipped = 0;

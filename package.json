@@ -1,7 +1,15 @@
 {
   "name": "@autotia/vehicle-valuation-sdk-legacy",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "SDK CommonJS para la API de tasación vehicular de Autotia",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/autotia/vehicle-valuation-sdk-node-legacy.git"
+  },
+  "homepage": "https://github.com/autotia/vehicle-valuation-sdk-node-legacy#readme",
+  "bugs": {
+    "url": "https://github.com/autotia/vehicle-valuation-sdk-node-legacy/issues"
+  },
   "license": "MIT",
   "type": "commonjs",
   "main": "dist/index.js",
