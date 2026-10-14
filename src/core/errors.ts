@@ -36,7 +36,7 @@ export class RateLimitError extends AutotiaError {}
 export class InternalServerError extends AutotiaError {}
 export class AutotiaConnectionError extends AutotiaError {}
 export class WaiterTimeoutError extends AutotiaError {}
-export class ValuationFailedError extends AutotiaError {}
+export class OrderFailedError extends AutotiaError {}
 
 export function makeHttpError(
   status: number,

@@ -4,7 +4,7 @@
   "cases": [
     {
       "id": "http-400-invalid-request",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 400,
@@ -96,7 +96,7 @@
     },
     {
       "id": "http-403-client-suspended",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 403,
@@ -121,8 +121,8 @@
       }
     },
     {
-      "id": "http-404-valuation",
-      "request": { "method": "GET", "path": "/v1/vehicle-valuation/unknown" },
+      "id": "http-404-order",
+      "request": { "method": "GET", "path": "/v1/orders/unknown" },
       "responses": [
         {
           "status": 404,
@@ -134,7 +134,7 @@
             "durationMs": 1,
             "error": {
               "code": "invalid_request",
-              "description": "tasación no encontrada"
+              "description": "pedido no encontrado"
             }
           }
         }
@@ -205,7 +205,7 @@
       "id": "http-409-idempotency-conflict",
       "request": {
         "method": "POST",
-        "path": "/v1/vehicle-valuation",
+        "path": "/v1/orders",
         "headers": { "Idempotency-Key": "order-1" }
       },
       "responses": [
@@ -234,7 +234,7 @@
     {
       "id": "http-422-data-unavailable-reserved",
       "contractStatus": "reserved; not emitted by the reviewed request handler",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 422,
@@ -260,7 +260,7 @@
     },
     {
       "id": "http-429-credential-quota",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 429,
@@ -286,7 +286,7 @@
     },
     {
       "id": "http-429-company-quota",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 429,
@@ -393,14 +393,22 @@
     },
     {
       "id": "waiter-202-then-200",
-      "operation": "valuations.waitUntilComplete",
-      "request": { "method": "GET", "path": "/v1/vehicle-valuation/val-1" },
+      "operation": "orders.waitUntilComplete",
+      "request": {
+        "method": "GET",
+        "path": "/v1/orders/ordb2b_01j7x000000000000000000000"
+      },
       "responses": [
         {
           "status": 202,
           "headers": { "content-type": "application/json" },
           "body": {
-            "data": { "valuationId": "val-1", "status": "RUNNING" },
+            "data": {
+              "orderId": "ordb2b_01j7x000000000000000000000",
+              "reportType": "general-price",
+              "status": "RUNNING",
+              "saleId": "sal_01j7x000000000000000000000"
+            },
             "apiRequestId": "req-wait-a",
             "executionId": "exec-wait-a",
             "durationMs": 1
@@ -411,8 +419,10 @@
           "headers": { "content-type": "application/json" },
           "body": {
             "data": {
-              "valuationId": "val-1",
+              "orderId": "ordb2b_01j7x000000000000000000000",
+              "reportType": "general-price",
               "status": "COMPLETED",
+              "saleId": "sal_01j7x000000000000000000000",
               "result": {
                 "schemaVersion": "general-price-result-v1",
                 "data": {
@@ -482,8 +492,10 @@
       "expected": {
         "kind": "value",
         "value": {
-          "valuationId": "val-1",
+          "orderId": "ordb2b_01j7x000000000000000000000",
+          "reportType": "general-price",
           "status": "COMPLETED",
+          "saleId": "sal_01j7x000000000000000000000",
           "result": {
             "schemaVersion": "general-price-result-v1",
             "data": {
@@ -550,14 +562,15 @@
     },
     {
       "id": "acceptance-poll-after-ms",
-      "request": { "method": "POST", "path": "/v1/vehicle-valuation" },
+      "request": { "method": "POST", "path": "/v1/orders" },
       "responses": [
         {
           "status": 202,
           "headers": { "content-type": "application/json" },
           "body": {
             "data": {
-              "valuationId": "val-2",
+              "orderId": "ordb2b_01j7x000000000000000000001",
+              "reportType": "general-price",
               "status": "PENDING",
               "pollAfterMs": 2000
             },
@@ -570,7 +583,8 @@
       "expected": {
         "kind": "value",
         "value": {
-          "valuationId": "val-2",
+          "orderId": "ordb2b_01j7x000000000000000000001",
+          "reportType": "general-price",
           "status": "PENDING",
           "pollAfterMs": 2000
         },
@@ -580,15 +594,19 @@
     },
     {
       "id": "waiter-terminal-failure",
-      "operation": "valuations.waitUntilComplete",
-      "request": { "method": "GET", "path": "/v1/vehicle-valuation/val-3" },
+      "operation": "orders.waitUntilComplete",
+      "request": {
+        "method": "GET",
+        "path": "/v1/orders/ordb2b_01j7x000000000000000000002"
+      },
       "responses": [
         {
           "status": 200,
           "headers": { "content-type": "application/json" },
           "body": {
             "data": {
-              "valuationId": "val-3",
+              "orderId": "ordb2b_01j7x000000000000000000002",
+              "reportType": "general-price",
               "status": "FAILED",
               "failure": {
                 "code": "vehicle_not_found",
@@ -603,7 +621,7 @@
       ],
       "expected": {
         "kind": "error",
-        "class": "ValuationFailedError",
+        "class": "OrderFailedError",
         "code": "vehicle_not_found",
         "retry": { "retryable": false, "maxRetries": 0 }
       }

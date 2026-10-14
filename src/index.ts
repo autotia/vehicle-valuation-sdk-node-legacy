@@ -3,7 +3,7 @@ import type { TokenProvider } from "./auth/token-provider";
 import type { RequestConfig } from "./core/request";
 import type { Transport } from "./core/types";
 import { CatalogResource } from "./resources/catalog";
-import { ValuationsResource } from "./resources/valuations";
+import { OrdersResource } from "./resources/orders";
 import { HttpsTransport } from "./transport/https";
 
 export {
@@ -14,17 +14,19 @@ export {
   ConflictError,
   InternalServerError,
   NotFoundError,
+  OrderFailedError,
   PermissionDeniedError,
   QuotaExceededError,
   RateLimitError,
   UnprocessableEntityError,
-  ValuationFailedError,
   WaiterTimeoutError,
   ErrorDetails,
 } from "./core/errors";
 export * from "./core/types";
 export * from "./resources/types";
 export { TokenProvider } from "./auth/token-provider";
+export { OrdersResource } from "./resources/orders";
+export { CatalogResource } from "./resources/catalog";
 
 export interface VehicleValuationClientOptions {
   environment?: "dev" | "prod";
@@ -54,7 +56,7 @@ const ENVIRONMENTS = {
 };
 
 export class VehicleValuationClient {
-  public readonly valuations: ValuationsResource;
+  public readonly orders: OrdersResource;
   public readonly catalog: CatalogResource;
 
   public constructor(options: VehicleValuationClientOptions) {
@@ -100,7 +102,7 @@ export class VehicleValuationClient {
       maxRetries: options.maxRetries === undefined ? 2 : options.maxRetries,
       timeoutMs: options.timeoutMs === undefined ? 30000 : options.timeoutMs,
     };
-    this.valuations = new ValuationsResource(config);
+    this.orders = new OrdersResource(config);
     this.catalog = new CatalogResource(config);
   }
 }

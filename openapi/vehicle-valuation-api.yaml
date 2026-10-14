@@ -6,8 +6,8 @@ info:
     API B2B de tasación vehicular de Autotia (Chile). Este archivo es la copia del contrato que usan los SDK
     oficiales para escribir sus tipos y su suite de conformidad; no se genera código a partir de él.
 
-    - La tasación es asíncrona: `POST /v1/vehicle-valuation` acepta la solicitud y
-      `GET /v1/vehicle-valuation/{valuationId}` consulta el estado hasta un estado terminal.
+    - La tasación es asíncrona: `POST /v1/orders` acepta la solicitud y
+      `GET /v1/orders/{orderId}` consulta el estado hasta un estado terminal.
     - Todas las respuestas de la API usan el envelope estándar `data`, `apiRequestId`, `executionId`,
       `durationMs`; `error` solo aparece en errores y `pageToken` no se usa en v1.
     - La pasarela de entrada puede rechazar una solicitud (401 por token ausente o inválido, 403 por scope
@@ -22,30 +22,30 @@ servers:
 security:
   - oauth2ClientCredentials: []
 tags:
-  - name: valuations
-    description: Tasación vehicular asíncrona.
+  - name: orders
+    description: Pedidos de tasación vehicular asíncronos.
   - name: catalog
     description: Catálogo de marcas, modelos, años y versiones.
 paths:
-  /v1/vehicle-valuation:
+  /v1/orders:
     post:
-      tags: [valuations]
-      operationId: createValuation
-      summary: Solicita una tasación
+      tags: [orders]
+      operationId: createOrder
+      summary: Solicita un pedido de tasación
       description: |
         Requiere el scope `https://api.autotia.com/reports/vehicle-valuation.read`.
 
-        `year` y `odometerKm` son obligatorios y deben ser enteros JSON; sin ellos responde 400. El servicio no
-        valida de forma síncrona el resto de los campos: una combinación de vehículo inválida puede terminar
-        luego en un estado `FAILED`.
+        `reportType`, `year` y `odometerKm` son obligatorios; `reportType` debe ser `general-price` y `year` y
+        `odometerKm` deben ser enteros JSON; sin ellos responde 400. El servicio no valida de forma síncrona el
+        resto de los campos: una combinación de vehículo inválida puede terminar luego en un estado `FAILED`.
 
         `Idempotency-Key` es opcional. Sin ella cada POST es una solicitud nueva. Con ella, repetir la misma
-        clave y el mismo cuerpo reutiliza la tasación existente (la respuesta refleja su estado actual, puede ser
+        clave y el mismo cuerpo reutiliza el pedido existente (la respuesta refleja su estado actual, puede ser
         200 si ya terminó) y repetir la clave con otro cuerpo responde 409. El registro de idempotencia dura
         24 horas. El largo máximo de la clave no está confirmado; se recomienda una clave corta y imprimible.
 
         Si falla la comunicación interna después de aceptar la solicitud, la respuesta sigue siendo 202
-        `PENDING`: el `valuationId` devuelto es el que se consulta y puede resolverse luego a otro identificador
+        `PENDING`: el `orderId` devuelto es el que se consulta y puede resolverse luego a otro identificador
         en las respuestas del GET.
       parameters:
         - name: Idempotency-Key
@@ -59,7 +59,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ValuationRequest'
+              $ref: '#/components/schemas/OrderRequest'
       responses:
         '202':
           description: Solicitud aceptada y en proceso.
@@ -69,7 +69,7 @@ paths:
                 $ref: '#/components/schemas/AcceptanceEnvelope'
         '200':
           description: |
-            Repetición idempotente de una solicitud cuya tasación ya terminó. Devuelve el estado terminal con el
+            Repetición idempotente de una solicitud cuyo pedido ya terminó. Devuelve el estado terminal con el
             mismo shape que el GET: `COMPLETED` con `result` o `FAILED` con `failure`.
           content:
             application/json:
@@ -101,34 +101,35 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-  /v1/vehicle-valuation/{valuationId}:
+  /v1/orders/{orderId}:
     get:
-      tags: [valuations]
-      operationId: getValuation
-      summary: Consulta el estado de una tasación
+      tags: [orders]
+      operationId: getOrder
+      summary: Consulta el estado de un pedido
       description: |
         Requiere el scope `https://api.autotia.com/reports/vehicle-valuation.read`.
 
-        Mientras la tasación está en proceso responde 202 con `PENDING` o `RUNNING` y **sin** `pollAfterMs`
+        Mientras el pedido está en proceso responde 202 con `PENDING` o `RUNNING` y **sin** `pollAfterMs`
         (el intervalo sugerido solo viaja en la respuesta del POST: 2000 ms). Al terminar responde 200 con
         `COMPLETED` y `result`, o con `FAILED` y `failure`: un fallo terminal es una respuesta exitosa del
-        polling. La consulta solo lee; no inicia cálculos. Una tasación de otra empresa o inexistente se informa
+        polling. La consulta solo lee; no inicia cálculos. Un pedido de otra empresa o inexistente se informa
         igual: 404.
       parameters:
-        - name: valuationId
+        - name: orderId
           in: path
           required: true
+          description: Identificador del pedido con prefijo `ordb2b_`.
           schema:
             type: string
       responses:
         '202':
-          description: La tasación sigue en proceso.
+          description: El pedido sigue en proceso.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatusEnvelope'
         '200':
-          description: La tasación terminó (`COMPLETED` o `FAILED`).
+          description: El pedido terminó (`COMPLETED` o `FAILED`).
           content:
             application/json:
               schema:
@@ -138,7 +139,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Tasación inexistente o de otra empresa. Código `invalid_request`.
+          description: Pedido inexistente o de otra empresa. Código `invalid_request`.
           content:
             application/json:
               schema:
@@ -357,7 +358,7 @@ components:
         Cache-Control:
           $ref: '#/components/headers/CacheControl'
     BadRequest:
-      description: JSON inválido o `year` u `odometerKm` ausentes o no enteros. Código `invalid_request`.
+      description: JSON inválido o `reportType`, `year` u `odometerKm` ausentes o inválidos. Código `invalid_request`.
       content:
         application/json:
           schema:
@@ -471,10 +472,14 @@ components:
       oneOf:
         - $ref: '#/components/schemas/ErrorEnvelope'
         - $ref: '#/components/schemas/GatewayBody'
-    ValuationRequest:
+    OrderRequest:
       type: object
-      required: [year, odometerKm]
+      required: [reportType, year, odometerKm]
       properties:
+        reportType:
+          type: string
+          enum: [general-price]
+          description: Tipo de informe solicitado.
         mark:
           type: string
           description: Texto (`text`) de la marca tal como lo devuelve el catálogo.
@@ -489,21 +494,28 @@ components:
         odometerKm:
           type: integer
           description: Kilometraje en kilómetros.
-    ValuationState:
+    OrderState:
       type: string
       enum: [PENDING, RUNNING, COMPLETED, FAILED]
     Acceptance:
       type: object
-      required: [valuationId, status, pollAfterMs]
+      required: [orderId, reportType, status, pollAfterMs]
       properties:
-        valuationId:
+        orderId:
           type: string
+          description: Identificador del pedido con prefijo `ordb2b_`.
+        reportType:
+          type: string
+          description: Eco del tipo de informe pedido.
         status:
           type: string
           enum: [PENDING, RUNNING]
         pollAfterMs:
           type: integer
           description: Intervalo sugerido antes de consultar el estado. Hoy es siempre 2000.
+        saleId:
+          type: string
+          description: Identificador de la venta asociada con prefijo `sal_` (se omite si aún no está asociada).
     AcceptanceEnvelope:
       allOf:
         - $ref: '#/components/schemas/EnvelopeMeta'
@@ -529,19 +541,25 @@ components:
           $ref: '#/components/schemas/FailureCode'
         description:
           type: string
-    ValuationStatus:
+    OrderStatus:
       type: object
       description: |
-        `result` solo está presente en `COMPLETED` y `failure` solo en `FAILED`. `valuationId` puede diferir del
-        identificador usado para consultar cuando la aceptación devolvió una clave provisoria.
-      required: [valuationId, status]
+        `result` solo está presente en `COMPLETED` y `failure` solo en `FAILED`. `saleId` se omite si la venta aún no está asociada.
+      required: [orderId, reportType, status]
       properties:
-        valuationId:
+        orderId:
           type: string
+          description: Identificador del pedido con prefijo `ordb2b_`.
+        reportType:
+          type: string
+          description: Eco del tipo de informe pedido.
         status:
-          $ref: '#/components/schemas/ValuationState'
+          $ref: '#/components/schemas/OrderState'
+        saleId:
+          type: string
+          description: Identificador de la venta asociada con prefijo `sal_` (se omite si aún no está asociada).
         result:
-          $ref: '#/components/schemas/ValuationResult'
+          $ref: '#/components/schemas/OrderResult'
         failure:
           $ref: '#/components/schemas/Failure'
     StatusEnvelope:
@@ -551,8 +569,8 @@ components:
           required: [data]
           properties:
             data:
-              $ref: '#/components/schemas/ValuationStatus'
-    ValuationResult:
+              $ref: '#/components/schemas/OrderStatus'
+    OrderResult:
       type: object
       required: [schemaVersion, data]
       properties:
@@ -560,8 +578,8 @@ components:
           type: string
           enum: [general-price-result-v1]
         data:
-          $ref: '#/components/schemas/ValuationResultData'
-    ValuationResultData:
+          $ref: '#/components/schemas/OrderResultData'
+    OrderResultData:
       type: object
       required: [vehicle, marketContext, purchase, sale, grossMarginEstimate, freshness, methodology]
       properties:

@@ -1,89 +1,82 @@
-import { ValuationFailedError, WaiterTimeoutError } from "../core/errors";
+import { OrderFailedError, WaiterTimeoutError } from "../core/errors";
 import { type RequestConfig, requestData } from "../core/request";
 import type { CallOptions } from "../core/types";
-import type {
-  ValuationAcceptance,
-  ValuationRequest,
-  ValuationStatus,
-} from "./types";
+import type { OrderAcceptance, OrderRequest, OrderStatus } from "./types";
 
-export class ValuationsResource {
+export class OrdersResource {
   private readonly config: RequestConfig;
-  private readonly pollIntervals: { [valuationId: string]: number };
+  private readonly pollIntervals: { [orderId: string]: number };
 
   public constructor(config: RequestConfig) {
     this.config = config;
     this.pollIntervals = Object.create(null) as {
-      [valuationId: string]: number;
+      [orderId: string]: number;
     };
   }
 
   public async create(
-    input: ValuationRequest,
+    input: OrderRequest,
     options: CallOptions = {},
-  ): Promise<ValuationAcceptance | ValuationStatus> {
+  ): Promise<OrderAcceptance | OrderStatus> {
     const headersOptions = options.idempotencyKey
       ? options
       : { ...options, idempotencyKey: createUuid() };
-    const response = await requestData<ValuationAcceptance | ValuationStatus>(
+    const response = await requestData<OrderAcceptance | OrderStatus>(
       this.config,
       "POST",
-      "/v1/vehicle-valuation",
+      "/v1/orders",
       input,
       headersOptions,
     );
     if ("pollAfterMs" in response && typeof response.pollAfterMs === "number") {
-      this.pollIntervals[response.valuationId] = response.pollAfterMs;
+      this.pollIntervals[response.orderId] = response.pollAfterMs;
     }
     return response;
   }
 
-  public get(
-    valuationId: string,
-    options: CallOptions = {},
-  ): Promise<ValuationStatus> {
+  public get(orderId: string, options: CallOptions = {}): Promise<OrderStatus> {
     return requestData(
       this.config,
       "GET",
-      `/v1/vehicle-valuation/${encodeURIComponent(valuationId)}`,
+      `/v1/orders/${encodeURIComponent(orderId)}`,
       undefined,
       options,
     );
   }
 
   public async waitUntilComplete(
-    valuationId: string,
+    orderId: string,
     options: CallOptions = {},
-  ): Promise<ValuationStatus> {
+  ): Promise<OrderStatus> {
     const timeout =
       options.timeoutMs === undefined ? 120000 : options.timeoutMs;
     const started = Date.now();
     let delay =
       options.pollAfterMs !== undefined
         ? options.pollAfterMs
-        : this.pollIntervals[valuationId] !== undefined
-          ? this.pollIntervals[valuationId]
+        : this.pollIntervals[orderId] !== undefined
+          ? this.pollIntervals[orderId]
           : 2000;
     while (Date.now() - started < timeout) {
       if (options.signal && options.signal.aborted)
         throw new WaiterTimeoutError("La espera fue cancelada.");
       const remaining = timeout - (Date.now() - started);
-      const status = await this.get(valuationId, {
+      const status = await this.get(orderId, {
         ...options,
         timeoutMs: Math.max(1, remaining),
       });
       if (status.status === "FAILED") {
-        delete this.pollIntervals[valuationId];
+        delete this.pollIntervals[orderId];
         const failure = status.failure || {
           code: "service_unavailable",
-          description: "La tasación terminó sin resultado.",
+          description: "El pedido terminó sin resultado.",
         };
-        throw new ValuationFailedError(failure.description, {
+        throw new OrderFailedError(failure.description, {
           code: failure.code,
         });
       }
       if (status.status === "COMPLETED" && status.result) {
-        delete this.pollIntervals[valuationId];
+        delete this.pollIntervals[orderId];
         return status;
       }
       const waitMs = Math.min(
@@ -94,7 +87,7 @@ export class ValuationsResource {
       await waitFor(waitMs, options.signal);
       delay = options.pollAfterMs === undefined ? delay : options.pollAfterMs;
     }
-    delete this.pollIntervals[valuationId];
+    delete this.pollIntervals[orderId];
     throw new WaiterTimeoutError("La espera superó el plazo configurado.");
   }
 }

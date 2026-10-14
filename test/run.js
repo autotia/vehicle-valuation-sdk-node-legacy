@@ -184,7 +184,11 @@ test("no reintenta cuotas comerciales agotadas", async () => {
     }),
   ]);
   await assert.rejects(
-    clientWith(transport).valuations.create({ year: 2020, odometerKm: 50000 }),
+    clientWith(transport).orders.create({
+      reportType: "general-price",
+      year: 2020,
+      odometerKm: 50000,
+    }),
     (error) => error instanceof sdk.QuotaExceededError,
   );
   assert.strictEqual(transport.counts().apiCalls, 1);
@@ -193,18 +197,25 @@ test("no reintenta cuotas comerciales agotadas", async () => {
 test("create genera una clave Idempotency-Key UUID v4", async () => {
   let apiRequest = null;
   const transport = memoryTransport([
-    json(202, { valuationId: "val-1", status: "PENDING", pollAfterMs: 2000 }),
+    json(202, {
+      orderId: "ordb2b_1",
+      reportType: "general-price",
+      status: "PENDING",
+      pollAfterMs: 2000,
+    }),
   ]);
   const originalRequest = transport.request;
   transport.request = async (request) => {
     if (request.url.indexOf("/oauth2/token") === -1) apiRequest = request;
     return originalRequest(request);
   };
-  const result = await clientWith(transport).valuations.create({
+  const result = await clientWith(transport).orders.create({
+    reportType: "general-price",
     year: 2020,
     odometerKm: 50000,
   });
-  assert.strictEqual(result.valuationId, "val-1");
+  assert.strictEqual(result.orderId, "ordb2b_1");
+  assert.strictEqual(result.reportType, "general-price");
   assert.strictEqual(
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
       apiRequest.headers["Idempotency-Key"],
@@ -213,32 +224,104 @@ test("create genera una clave Idempotency-Key UUID v4", async () => {
   );
 });
 
-test("el waiter devuelve el estado terminal con result", async () => {
+test("orders.create envía reportType en el body y deserializa orderId y saleId", async () => {
+  let capturedBody = "";
+  const transport = memoryTransport([
+    json(202, {
+      orderId: "ordb2b_01j7x000000000000000000001",
+      reportType: "general-price",
+      status: "PENDING",
+      pollAfterMs: 2000,
+      saleId: "sal_01j7x000000000000000000001",
+    }),
+  ]);
+  const originalRequest = transport.request;
+  transport.request = async (request) => {
+    if (request.url.indexOf("/oauth2/token") === -1)
+      capturedBody = request.body;
+    return originalRequest(request);
+  };
+  const result = await clientWith(transport).orders.create({
+    reportType: "general-price",
+    mark: "Toyota",
+    model: "Yaris",
+    year: 2020,
+    odometerKm: 50000,
+  });
+  const parsed = JSON.parse(capturedBody);
+  assert.strictEqual(parsed.reportType, "general-price");
+  assert.strictEqual(parsed.mark, "Toyota");
+  assert.strictEqual(result.orderId, "ordb2b_01j7x000000000000000000001");
+  assert.strictEqual(result.reportType, "general-price");
+  assert.strictEqual(result.saleId, "sal_01j7x000000000000000000001");
+});
+
+test("orders.get consulta por orderId y deserializa orderId, reportType y saleId", async () => {
+  let requestedUrl = "";
   const transport = memoryTransport([
     json(200, {
-      valuationId: "val-1",
+      orderId: "ordb2b_01j7x000000000000000000001",
+      reportType: "general-price",
       status: "COMPLETED",
+      saleId: "sal_01j7x000000000000000000001",
       result: { schemaVersion: "v1", data: {} },
     }),
   ]);
-  const state = await clientWith(transport).valuations.waitUntilComplete(
-    "val-1",
+  const originalRequest = transport.request;
+  transport.request = async (request) => {
+    if (request.url.indexOf("/oauth2/token") === -1) requestedUrl = request.url;
+    return originalRequest(request);
+  };
+  const result = await clientWith(transport).orders.get(
+    "ordb2b_01j7x000000000000000000001",
+  );
+  assert.strictEqual(
+    requestedUrl.indexOf("/v1/orders/ordb2b_01j7x000000000000000000001") !== -1,
+    true,
+  );
+  assert.strictEqual(result.orderId, "ordb2b_01j7x000000000000000000001");
+  assert.strictEqual(result.reportType, "general-price");
+  assert.strictEqual(result.saleId, "sal_01j7x000000000000000000001");
+  assert.strictEqual(result.status, "COMPLETED");
+});
+
+test("el waiter devuelve el estado terminal con result", async () => {
+  const transport = memoryTransport([
+    json(200, {
+      orderId: "ordb2b_1",
+      reportType: "general-price",
+      status: "COMPLETED",
+      saleId: "sal_1",
+      result: { schemaVersion: "v1", data: {} },
+    }),
+  ]);
+  const state = await clientWith(transport).orders.waitUntilComplete(
+    "ordb2b_1",
     { pollAfterMs: 0 },
   );
   assert.strictEqual(state.status, "COMPLETED");
+  assert.strictEqual(state.orderId, "ordb2b_1");
+  assert.strictEqual(state.reportType, "general-price");
+  assert.strictEqual(state.saleId, "sal_1");
   assert.deepStrictEqual(state.result, { schemaVersion: "v1", data: {} });
 });
 
 test("el waiter usa el intervalo de polling recibido al crear", async () => {
   const transport = memoryTransport([
     json(202, {
-      valuationId: "val-interval",
+      orderId: "ordb2b_interval",
+      reportType: "general-price",
       status: "PENDING",
       pollAfterMs: 17,
     }),
-    json(202, { valuationId: "val-interval", status: "RUNNING" }),
+    json(202, {
+      orderId: "ordb2b_interval",
+      reportType: "general-price",
+      status: "RUNNING",
+    }),
     json(200, {
-      valuationId: "val-interval",
+      orderId: "ordb2b_interval",
+      reportType: "general-price",
       status: "COMPLETED",
       result: { schemaVersion: "v1", data: {} },
     }),
@@ -251,8 +334,12 @@ test("el waiter usa el intervalo de polling recibido al crear", async () => {
     return originalSetTimeout(callback, 0);
   };
   try {
-    await client.valuations.create({ year: 2020, odometerKm: 100 });
-    const result = await client.valuations.waitUntilComplete("val-interval", {
+    await client.orders.create({
+      reportType: "general-price",
+      year: 2020,
+      odometerKm: 100,
+    });
+    const result = await client.orders.waitUntilComplete("ordb2b_interval", {
       timeoutMs: 5000,
     });
     assert.strictEqual(result.status, "COMPLETED");
@@ -377,15 +464,22 @@ test("conformidad con los fixtures compartidos", async () => {
         maxRetries: item.expected.retry.maxRetries,
       };
       let operation = null;
-      if (item.operation === "valuations.waitUntilComplete") {
-        operation = client.valuations.waitUntilComplete("fixture-id", options);
+      if (item.operation === "orders.waitUntilComplete") {
+        const id =
+          item.request &&
+          item.request.path &&
+          item.request.path.indexOf("/orders/") !== -1
+            ? item.request.path.split("/orders/")[1]
+            : "ordb2b_01j7x000000000000000000000";
+        operation = client.orders.waitUntilComplete(id, options);
       } else if (item.request.method === "POST") {
-        operation = client.valuations.create(
-          { year: 2020, odometerKm: 50000 },
+        operation = client.orders.create(
+          { reportType: "general-price", year: 2020, odometerKm: 50000 },
           options,
         );
-      } else if (item.request.path.indexOf("/vehicle-valuation/") !== -1) {
-        operation = client.valuations.get("unknown", options);
+      } else if (item.request.path.indexOf("/orders/") !== -1) {
+        const id = item.request.path.split("/orders/")[1];
+        operation = client.orders.get(id, options);
       } else if (item.request.path.indexOf("/catalog/") === -1) {
         operation = client.catalog.listMarks(options);
       } else if (item.request.path.split("/").length === 4) {
