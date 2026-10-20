@@ -1,3 +1,5 @@
+import type { InferredTrim } from "../resources/types";
+
 export interface ErrorDetails {
   status?: number;
   code?: string;
@@ -37,6 +39,23 @@ export class InternalServerError extends AutotiaError {}
 export class AutotiaConnectionError extends AutotiaError {}
 export class WaiterTimeoutError extends AutotiaError {}
 export class OrderFailedError extends AutotiaError {}
+export class TrimInferenceError extends AutotiaError {
+  public outcome: string;
+  public versions: InferredTrim[];
+
+  public constructor(
+    message: string,
+    outcome: string,
+    versions: InferredTrim[] = [],
+    details: ErrorDetails = {},
+  ) {
+    super(message, details);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = new.target.name;
+    this.outcome = outcome;
+    this.versions = versions;
+  }
+}
 
 export function makeHttpError(
   status: number,

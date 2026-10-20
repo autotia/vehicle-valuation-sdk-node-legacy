@@ -472,6 +472,19 @@ test("conformidad con los fixtures compartidos", async () => {
             ? item.request.path.split("/orders/")[1]
             : "ordb2b_01j7x000000000000000000000";
         operation = client.orders.waitUntilComplete(id, options);
+      } else if (
+        item.request.path === "/v1/version-inference" &&
+        item.request.method === "POST"
+      ) {
+        operation = client.catalog.inferTrim(
+          item.request.body || {
+            mark: "Chevrolet",
+            model: "Camaro",
+            year: 2013,
+            text: "3.6 RS coupe mecanico",
+          },
+          options,
+        );
       } else if (item.request.method === "POST") {
         operation = client.orders.create(
           { reportType: "general-price", year: 2020, odometerKm: 50000 },
@@ -575,6 +588,336 @@ test("metadatos: package.json tiene repository.url apuntando a github.com/autoti
         "github.com/autotia/vehicle-valuation-sdk-node-legacy",
       ) !== -1,
     `repository.url debe apuntar a github.com/autotia/vehicle-valuation-sdk-node-legacy, recibido: ${pkg.repository ? pkg.repository.url : undefined}`,
+  );
+});
+
+test("catalog.inferTrim: envía cuerpo JSON correcto y recibe resultado", async () => {
+  let capturedBody = null;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        capturedBody = JSON.parse(request.body);
+        return json(200, {
+          catalogVersion: "cat-test-1",
+          outcome: "matched",
+          totalCandidates: 1,
+          versions: [{ version: "3.6 L RS MT", confidence: 100 }],
+        });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  const res = await client.catalog.inferTrim({
+    mark: "Chevrolet",
+    model: "Camaro",
+    year: 2013,
+    text: "3.6 RS coupe",
+    limit: 3,
+  });
+
+  assert.deepStrictEqual(capturedBody, {
+    mark: "Chevrolet",
+    model: "Camaro",
+    year: 2013,
+    text: "3.6 RS coupe",
+    limit: 3,
+  });
+  assert.strictEqual(res.catalogVersion, "cat-test-1");
+  assert.strictEqual(res.outcome, "matched");
+  assert.strictEqual(res.totalCandidates, 1);
+  assert.strictEqual(res.versions[0].version, "3.6 L RS MT");
+  assert.strictEqual(res.versions[0].confidence, 100);
+});
+
+test("orders.createFromTrimText: matched crea pedido con versions[0].version", async () => {
+  let inferenceBody = null;
+  let orderBody = null;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        inferenceBody = JSON.parse(request.body);
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "matched",
+          totalCandidates: 2,
+          versions: [
+            { version: "1.5 GL MT", confidence: 85 },
+            { version: "1.5 XLi MT", confidence: 15 },
+          ],
+        });
+      }
+      if (request.url.indexOf("/v1/orders") !== -1) {
+        orderBody = JSON.parse(request.body);
+        return json(202, {
+          orderId: "ordb2b_from_trim_1",
+          reportType: "general-price",
+          status: "PENDING",
+          pollAfterMs: 2000,
+        });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  const res = await client.orders.createFromTrimText({
+    reportType: "general-price",
+    mark: "Toyota",
+    model: "Yaris",
+    year: 2020,
+    trimText: "1.5 GL sedan mecanico",
+    odometerKm: 45000,
+  });
+
+  assert.strictEqual(inferenceBody.text, "1.5 GL sedan mecanico");
+  assert.strictEqual(orderBody.version, "1.5 GL MT");
+  assert.strictEqual(orderBody.mark, "Toyota");
+  assert.strictEqual(orderBody.model, "Yaris");
+  assert.strictEqual(orderBody.year, 2020);
+  assert.strictEqual(orderBody.odometerKm, 45000);
+  assert.strictEqual(res.selectedVersion, "1.5 GL MT");
+  assert.strictEqual(res.order.orderId, "ordb2b_from_trim_1");
+  assert.strictEqual(res.inference.outcome, "matched");
+});
+
+test("orders.createFromTrimText: no_evidence lanza TrimInferenceError sin llamar a orders.create", async () => {
+  let orderCalls = 0;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "no_evidence",
+          totalCandidates: 2,
+          versions: [
+            { version: "1.5 GL MT", confidence: 50 },
+            { version: "1.5 XLi MT", confidence: 50 },
+          ],
+        });
+      }
+      if (request.url.indexOf("/v1/orders") !== -1) {
+        orderCalls += 1;
+        return json(202, { orderId: "should-not-be-called" });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  await assert.rejects(
+    client.orders.createFromTrimText({
+      reportType: "general-price",
+      mark: "Toyota",
+      model: "Yaris",
+      year: 2020,
+      trimText: "auto azul",
+      odometerKm: 45000,
+    }),
+    (err) => {
+      assert.strictEqual(err instanceof sdk.TrimInferenceError, true);
+      assert.strictEqual(err.outcome, "no_evidence");
+      assert.strictEqual(err.versions.length, 2);
+      return true;
+    },
+  );
+  assert.strictEqual(orderCalls, 0);
+});
+
+test("orders.createFromTrimText: no_match lanza TrimInferenceError sin llamar a orders.create", async () => {
+  let orderCalls = 0;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "no_match",
+          totalCandidates: 0,
+          versions: [],
+        });
+      }
+      if (request.url.indexOf("/v1/orders") !== -1) {
+        orderCalls += 1;
+        return json(202, { orderId: "should-not-be-called" });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  await assert.rejects(
+    client.orders.createFromTrimText({
+      reportType: "general-price",
+      mark: "Toyota",
+      model: "Yaris",
+      year: 2020,
+      trimText: "v8 biturbo diesel 4x4",
+      odometerKm: 45000,
+    }),
+    (err) => {
+      assert.strictEqual(err instanceof sdk.TrimInferenceError, true);
+      assert.strictEqual(err.outcome, "no_match");
+      assert.deepStrictEqual(err.versions, []);
+      return true;
+    },
+  );
+  assert.strictEqual(orderCalls, 0);
+});
+
+test("orders.createFromTrimText: minConfidence bajo umbral lanza TrimInferenceError", async () => {
+  let orderCalls = 0;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "matched",
+          totalCandidates: 2,
+          versions: [
+            { version: "1.5 GL MT", confidence: 55 },
+            { version: "1.5 XLi MT", confidence: 45 },
+          ],
+        });
+      }
+      if (request.url.indexOf("/v1/orders") !== -1) {
+        orderCalls += 1;
+        return json(202, { orderId: "should-not-be-called" });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  await assert.rejects(
+    client.orders.createFromTrimText(
+      {
+        reportType: "general-price",
+        mark: "Toyota",
+        model: "Yaris",
+        year: 2020,
+        trimText: "1.5 mecanico",
+        odometerKm: 45000,
+      },
+      { minConfidence: 70 },
+    ),
+    (err) => {
+      assert.strictEqual(err instanceof sdk.TrimInferenceError, true);
+      assert.strictEqual(err.outcome, "matched");
+      assert.strictEqual(err.versions[0].confidence, 55);
+      return true;
+    },
+  );
+  assert.strictEqual(orderCalls, 0);
+});
+
+test("orders.createFromTrimText: propaga Idempotency-Key solo a orders.create", async () => {
+  let inferenceHeaders = null;
+  let orderHeaders = null;
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        inferenceHeaders = request.headers;
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "matched",
+          totalCandidates: 1,
+          versions: [{ version: "1.5 GL MT", confidence: 100 }],
+        });
+      }
+      if (request.url.indexOf("/v1/orders") !== -1) {
+        orderHeaders = request.headers;
+        return json(202, {
+          orderId: "ordb2b_idem_1",
+          reportType: "general-price",
+          status: "PENDING",
+          pollAfterMs: 2000,
+        });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  await client.orders.createFromTrimText(
+    {
+      reportType: "general-price",
+      mark: "Toyota",
+      model: "Yaris",
+      year: 2020,
+      trimText: "1.5 GL",
+      odometerKm: 45000,
+    },
+    { idempotencyKey: "my-stable-key-123" },
+  );
+
+  assert.strictEqual(inferenceHeaders["Idempotency-Key"], undefined);
+  assert.strictEqual(orderHeaders["Idempotency-Key"], "my-stable-key-123");
+});
+
+test("orders.createFromTrimText: respeta signal cancelado", async () => {
+  const client = clientWith({
+    request: async () => tokenResponse(),
+  });
+  await assert.rejects(
+    client.orders.createFromTrimText(
+      {
+        reportType: "general-price",
+        mark: "Toyota",
+        model: "Yaris",
+        year: 2020,
+        trimText: "1.5",
+        odometerKm: 1000,
+      },
+      { signal: { aborted: true } },
+    ),
+  );
+});
+
+test("catalog.inferTrim: mapeo de errores HTTP 400 y 404 year_not_found", async () => {
+  const client400 = clientWith(
+    memoryTransport([
+      json(400, null, {
+        error: {
+          code: "invalid_request",
+          description: "Parámetros inválidos",
+        },
+      }),
+    ]),
+  );
+  await assert.rejects(
+    client400.catalog.inferTrim({
+      mark: "Chevrolet",
+      model: "Camaro",
+      year: 2013,
+      text: "",
+    }),
+    (err) => {
+      assert.strictEqual(err instanceof sdk.BadRequestError, true);
+      assert.strictEqual(err.code, "invalid_request");
+      return true;
+    },
+  );
+
+  const client404 = clientWith(
+    memoryTransport([
+      json(404, null, {
+        error: { code: "year_not_found", description: "Año no encontrado" },
+      }),
+    ]),
+  );
+  await assert.rejects(
+    client404.catalog.inferTrim({
+      mark: "Chevrolet",
+      model: "Camaro",
+      year: 1950,
+      text: "3.6",
+    }),
+    (err) => {
+      assert.strictEqual(err instanceof sdk.NotFoundError, true);
+      assert.strictEqual(err.code, "year_not_found");
+      return true;
+    },
   );
 });
 

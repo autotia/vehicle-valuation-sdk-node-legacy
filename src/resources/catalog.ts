@@ -5,6 +5,8 @@ import type {
   CatalogModels,
   CatalogTrims,
   CatalogYears,
+  TrimInferenceRequest,
+  TrimInferenceResult,
 } from "./types";
 
 export class CatalogResource {
@@ -56,6 +58,28 @@ export class CatalogResource {
       "GET",
       `/v1/catalog/${encodeURIComponent(mark)}/${encodeURIComponent(model)}/${encodeURIComponent(String(year))}`,
       undefined,
+      options,
+    );
+  }
+
+  public inferTrim(
+    input: TrimInferenceRequest,
+    options: CallOptions = {},
+  ): Promise<TrimInferenceResult> {
+    const body: { [key: string]: unknown } = {
+      mark: input.mark,
+      model: input.model,
+      year: input.year,
+      text: input.text,
+    };
+    if (input.limit !== undefined) {
+      body.limit = input.limit;
+    }
+    return requestData(
+      this.config,
+      "POST",
+      "/v1/version-inference",
+      body,
       options,
     );
   }

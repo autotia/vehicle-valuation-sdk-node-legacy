@@ -640,6 +640,161 @@
           "strategy": "exponential-backoff-with-jitter"
         }
       }
+    },
+    {
+      "id": "version-inference-matched",
+      "request": {
+        "method": "POST",
+        "path": "/v1/version-inference",
+        "body": {
+          "mark": "Chevrolet",
+          "model": "Camaro",
+          "year": 2013,
+          "text": "3.6 RS coupe mecanico"
+        }
+      },
+      "responses": [
+        {
+          "status": 200,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": {
+              "catalogVersion": "v2-test",
+              "outcome": "matched",
+              "totalCandidates": 2,
+              "versions": [
+                { "version": "3.6 L RS 4X2 COUPE NB MT 2P", "confidence": 78 },
+                { "version": "3.6 L LT 4X2 COUPE NB MT 2P", "confidence": 22 }
+              ]
+            },
+            "apiRequestId": "req-inf-matched",
+            "executionId": "exec-inf-matched",
+            "durationMs": 14
+          }
+        }
+      ],
+      "expected": {
+        "kind": "value",
+        "value": {
+          "catalogVersion": "v2-test",
+          "outcome": "matched",
+          "totalCandidates": 2,
+          "versions": [
+            { "version": "3.6 L RS 4X2 COUPE NB MT 2P", "confidence": 78 },
+            { "version": "3.6 L LT 4X2 COUPE NB MT 2P", "confidence": 22 }
+          ]
+        },
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-400-version-inference-invalid",
+      "request": {
+        "method": "POST",
+        "path": "/v1/version-inference",
+        "body": {
+          "mark": "Chevrolet",
+          "model": "Camaro",
+          "year": 2013,
+          "text": ""
+        }
+      },
+      "responses": [
+        {
+          "status": 400,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-inf-400",
+            "executionId": "exec-inf-400",
+            "durationMs": 1,
+            "error": {
+              "code": "invalid_request",
+              "description": "texto libre vacío o fuera de rango"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "BadRequestError",
+        "code": "invalid_request",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-404-version-inference-year",
+      "request": {
+        "method": "POST",
+        "path": "/v1/version-inference",
+        "body": {
+          "mark": "Chevrolet",
+          "model": "Camaro",
+          "year": 1950,
+          "text": "3.6 RS"
+        }
+      },
+      "responses": [
+        {
+          "status": 404,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-inf-404-y",
+            "executionId": "exec-inf-404-y",
+            "durationMs": 1,
+            "error": {
+              "code": "year_not_found",
+              "description": "año sin versiones en el catálogo"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "NotFoundError",
+        "code": "year_not_found",
+        "retry": { "retryable": false, "maxRetries": 0 }
+      }
+    },
+    {
+      "id": "http-504-version-inference-timeout",
+      "request": {
+        "method": "POST",
+        "path": "/v1/version-inference",
+        "body": {
+          "mark": "Chevrolet",
+          "model": "Camaro",
+          "year": 2013,
+          "text": "3.6 RS"
+        }
+      },
+      "responses": [
+        {
+          "status": 504,
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "data": null,
+            "apiRequestId": "req-inf-504",
+            "executionId": "exec-inf-504",
+            "durationMs": 1,
+            "error": {
+              "code": "upstream_timeout",
+              "description": "tiempo de espera agotado"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "kind": "error",
+        "class": "InternalServerError",
+        "code": "upstream_timeout",
+        "retry": {
+          "retryable": true,
+          "maxRetries": 2,
+          "strategy": "exponential-backoff-with-jitter"
+        }
+      }
     }
   ]
 }

@@ -295,6 +295,48 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  /v1/version-inference:
+    post:
+      tags: [catalog]
+      operationId: inferTrim
+      summary: Infiere las versiones del catálogo a partir de marca, modelo, año y texto libre
+      description: |
+        Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+
+        A partir de la marca, modelo, año y un texto descriptivo libre, devuelve las versiones más probables
+        del catálogo oficial ordenadas por preferencia relativa (`confidence`). El valor de cada versión
+        devuelta puede enviarse directamente en el campo `version` de `POST /v1/orders`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionInferenceRequest'
+      responses:
+        '200':
+          description: Resultado de la inferencia de versiones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInferenceEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Marca (`mark_not_found`), modelo (`model_not_found`) o año (`year_not_found`) no encontrado en el catálogo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     oauth2ClientCredentials:
@@ -439,6 +481,7 @@ components:
         - data_unavailable
         - mark_not_found
         - model_not_found
+        - year_not_found
         - quota_exceeded
         - company_quota_exceeded
         - service_unavailable
@@ -806,3 +849,62 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/CatalogTrims'
+    VersionInferenceRequest:
+      type: object
+      required: [mark, model, year, text]
+      properties:
+        mark:
+          type: string
+          description: Texto de la marca tal como lo devuelve el catálogo.
+        model:
+          type: string
+          description: Texto del modelo tal como lo devuelve el catálogo.
+        year:
+          type: integer
+          description: Año del vehículo (entre 1900 y año actual + 1).
+        text:
+          type: string
+          description: Texto libre para inferir la versión (1 a 200 caracteres tras recortar espacios).
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: Cantidad máxima de versiones a devolver (1 a 20, por defecto 5).
+    InferredTrim:
+      type: object
+      required: [version, confidence]
+      properties:
+        version:
+          type: string
+          description: Texto exacto de la versión en el catálogo.
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Preferencia relativa entre candidatos (0 a 100, suma 100 sobre el conjunto completo).
+    VersionInferenceResult:
+      type: object
+      required: [catalogVersion, outcome, totalCandidates, versions]
+      properties:
+        catalogVersion:
+          type: string
+          description: Hash o identificador de versión del catálogo consultado.
+        outcome:
+          type: string
+          enum: [matched, no_evidence, no_match]
+          description: Resultado del análisis sobre el texto proporcionado.
+        totalCandidates:
+          type: integer
+          description: Total de candidatos compatibles antes de limitar la lista devuelta.
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InferredTrim'
+    VersionInferenceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/VersionInferenceResult'

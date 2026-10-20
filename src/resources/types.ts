@@ -1,3 +1,5 @@
+import type { CallOptions } from "../core/types";
+
 export type ReportType = "general-price" | string;
 
 export interface OrderRequest {
@@ -136,4 +138,50 @@ export interface CatalogTrims {
   model: CatalogRef;
   year: number;
   trims: CatalogRef[];
+}
+
+export interface TrimInferenceRequest {
+  mark: string;
+  model: string;
+  year: number;
+  text: string;
+  limit?: number;
+}
+
+export type TrimInferenceOutcome =
+  | "matched"
+  | "no_evidence"
+  | "no_match"
+  | string;
+
+export interface InferredTrim {
+  version: string;
+  confidence: number;
+}
+
+export interface TrimInferenceResult {
+  catalogVersion: string;
+  outcome: TrimInferenceOutcome;
+  totalCandidates: number;
+  versions: InferredTrim[];
+}
+
+export interface OrderFromTrimTextRequest {
+  reportType: "general-price" | string;
+  mark: string;
+  model: string;
+  year: number;
+  trimText: string;
+  odometerKm: number;
+  limit?: number;
+}
+
+export interface OrderFromTrimTextOptions extends CallOptions {
+  minConfidence?: number;
+}
+
+export interface OrderFromTrimTextResult {
+  order: OrderAcceptance | OrderStatus;
+  inference: TrimInferenceResult;
+  selectedVersion: string;
 }

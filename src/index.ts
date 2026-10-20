@@ -18,6 +18,7 @@ export {
   PermissionDeniedError,
   QuotaExceededError,
   RateLimitError,
+  TrimInferenceError,
   UnprocessableEntityError,
   WaiterTimeoutError,
   ErrorDetails,

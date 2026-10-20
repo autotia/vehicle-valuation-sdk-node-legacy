@@ -1,23 +1,15 @@
 # Registro de cambios
 
-## Unreleased
+## [0.1.0-beta.3] - 2026-10-19
 
 - Las rutas de la API pasan de `/v1/vehicle-valuation` a `/v1/orders`.
 - `valuationId` pasa a `orderId`, con formato `ordb2b_…` (33 caracteres Crockford base32).
-- `reportType` es obligatorio en la creación del pedido (`OrderRequest`) y se incluye en las respuestas (`OrderAcceptance`, `OrderStatus`).
-- Se agrega el campo opcional `saleId` (`sal_…`) en las respuestas de pedidos (`OrderAcceptance`, `OrderStatus`).
-- Métodos del cliente renombrados:
-  - `client.valuations.create(input, options?)` pasa a `client.orders.create(input, options?)`.
-  - `client.valuations.get(valuationId, options?)` pasa a `client.orders.get(orderId, options?)`.
-  - `client.valuations.waitUntilComplete(valuationId, options?)` pasa a `client.orders.waitUntilComplete(orderId, options?)`.
-- Recursos y tipos renombrados:
-  - `client.valuations` (`ValuationsResource`) pasa a `client.orders` (`OrdersResource`).
-  - `ValuationRequest` pasa a `OrderRequest`.
-  - `ValuationAcceptance` pasa a `OrderAcceptance`.
-  - `ValuationStatus` pasa a `OrderStatus`.
-  - `ValuationResult` pasa a `OrderResult`.
-  - `ValuationFailure` pasa a `OrderFailure`.
-- Clase de error renombrada: `ValuationFailedError` pasa a `OrderFailedError`.
+- `reportType` es obligatorio al crear un pedido y se incluye en las respuestas; se agrega el campo opcional `saleId`.
+- El recurso `client.valuations` y sus tipos pasan a llamarse `client.orders`, con los métodos `create`, `get` y `waitUntilComplete`; la clase `ValuationFailedError` pasa a `OrderFailedError`.
+- Se agrega `client.catalog.inferTrim(input, options?)` para inferir versiones del catálogo vehicular a partir de marca, modelo, año y texto libre.
+- Se agrega `client.orders.createFromTrimText(input, options?)` para solicitar una tasación a partir de una descripción libre de versión.
+- Se agrega `TrimInferenceError` y los tipos públicos asociados a la inferencia de versiones y pedidos desde texto libre.
+- La especificación OpenAPI incorpora `POST /v1/version-inference` y el código de error `year_not_found`.
 
 ## [0.1.0-beta.2] - 2026-10-07
 
