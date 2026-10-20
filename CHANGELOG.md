@@ -1,5 +1,15 @@
 # Registro de cambios
 
+## [1.0.1] - 2026-10-20
+
+- Documentación actualizada: se remueve aviso de desarrollo en README y se describe el flujo vigente de publicación.
+- Publicación simplificada en GitHub Actions: se remueve el soporte de bootstrap/tokens y se publica exclusivamente con Trusted Publishing (OIDC).
+
+## [1.0.0] - 2026-10-20
+
+- Primera versión estable publicada en npm con dist-tag `latest`.
+- Conserva la misma API pública y funcionalidad que `0.1.0-beta.3`.
+
 ## [0.1.0-beta.3] - 2026-10-19
 
 - Las rutas de la API pasan de `/v1/vehicle-valuation` a `/v1/orders`.
