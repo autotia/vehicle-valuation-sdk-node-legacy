@@ -3,9 +3,6 @@
 Versión CommonJS del SDK de tasación vehicular de Autotia, para Node.js 11.15 a 22.11. En Node.js 22.12 o superior,
 usa [`@autotia/vehicle-valuation-sdk`](https://github.com/autotia/vehicle-valuation-sdk-node).
 
-> **Estado: en desarrollo.** Todavía no está publicado en npm. La API pública descrita aquí puede cambiar antes
-> de la versión 1.0.0.
-
 ## ¿Qué paquete necesito?
 
 | Tu entorno | Paquete |
@@ -207,16 +204,16 @@ Todos los errores heredan de `AutotiaError`, que expone `status`, `code`, `apiRe
 
 ## Publicación (mantenedores)
 
-La publicación se ejecuta al enviar un tag `v<version>` cuyo commit pertenece a `main`. Antes de crear el tag,
-actualiza `version` en `package.json` y asegúrate de que coincida exactamente con el tag.
+La publicación se realiza automáticamente mediante GitHub Actions (`publish.yml`) al crear un tag `v<version>` sobre la rama `main`. La primera publicación ya se realizó; el workflow publica solo con trusted publishing y no usa tokens npm.
 
-En GitHub, crea el environment `npm` y permite en él los tags `v*`. En npm, cuando el paquete ya exista, configura
-Trusted Publisher para este repositorio y el workflow `publish.yml`, con el environment `npm`. El workflow necesita
-Node.js 24 y npm 11.15.0 o superior para publicar mediante OIDC o staged publishing.
+Para configurar o reconfigurar la publicación:
+- En GitHub, se requiere el environment `npm` con permiso para los tags `v*`.
+- En npmjs.com, se requiere configurar Trusted Publisher para la organización `autotia`, repositorio correspondiente, workflow `publish.yml`, environment `npm` y la opción "Allow npm publish" habilitada.
+- El workflow de GitHub Actions requiere Node.js 24 y npm 11.5.1 o superior (instala npm 11.15.0).
 
-Para la primera publicación, el paquete aún no existe en npm y no puede tener Trusted Publisher configurado. Agrega
-temporalmente el secreto `NPM_BOOTSTRAP_TOKEN` al environment `npm`; el workflow lo usará para crear el paquete
-mediante staged publishing (`npm stage publish`) sin requerir 2FA durante el pipeline. La versión quedará en cola hasta
-que un mantenedor la apruebe con 2FA en npmjs.com (pestaña Staged Packages) o ejecutando `npm stage approve <stage-id>`.
-Inmediatamente después de aprobar el paquete y configurar Trusted Publisher en npm, elimina ese secreto de GitHub y
-realiza una publicación con OIDC dentro de los dos días siguientes para validar la configuración.
+El flujo estándar de publicación es el siguiente:
+
+1. Llevar los cambios aprobados desde `dev` hacia `main` (mediante Pull Request y merge).
+2. Crear y enviar el tag de versión (por ejemplo `v1.0.1`) sobre `main`.
+3. El workflow en GitHub Actions publica en npm utilizando autenticación de confianza (Trusted Publishing con OIDC) y procedencia verificable (provenance).
+4. Las versiones estables (sin sufijo de pre-versión) se publican con el dist-tag `latest`. Las versiones con sufijo (como `-beta.N`) se publican con el dist-tag `next`.
