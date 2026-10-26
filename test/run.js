@@ -631,6 +631,49 @@ test("catalog.inferTrim: envía cuerpo JSON correcto y recibe resultado", async 
   assert.strictEqual(res.versions[0].confidence, 100);
 });
 
+test("catalog: resolveVehicle, inferMark e inferModel usan sus rutas y cuerpos", async () => {
+  const requests = [];
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      requests.push({
+        path: new URL(request.url).pathname,
+        body: JSON.parse(request.body),
+      });
+      return json(200, {});
+    },
+  };
+  const client = clientWith(transport);
+  const resolutionRequest = {
+    mark: "Toyota",
+    year: 2020,
+    search: "Yaris 1.5 GL",
+  };
+
+  await client.catalog.resolveVehicle(resolutionRequest);
+  await client.catalog.inferMark({ text: "Toyota", limit: 3 });
+  await client.catalog.inferModel({
+    mark: "Toyota",
+    year: 2020,
+    text: "Yaris",
+  });
+
+  assert.deepStrictEqual(requests, [
+    {
+      path: "/public-secure/shop-b2b/v1/vehicle-resolution",
+      body: resolutionRequest,
+    },
+    {
+      path: "/public-secure/shop-b2b/v1/mark-inference",
+      body: { text: "Toyota", limit: 3 },
+    },
+    {
+      path: "/public-secure/shop-b2b/v1/model-inference",
+      body: { mark: "Toyota", year: 2020, text: "Yaris" },
+    },
+  ]);
+});
+
 test("orders.createFromTrimText: matched crea pedido con versions[0].version", async () => {
   let inferenceBody = null;
   let orderBody = null;

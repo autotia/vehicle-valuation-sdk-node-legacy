@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Autotia Vehicle Valuation API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     API B2B de tasación vehicular de Autotia (Chile). Este archivo es la copia del contrato que usan los SDK
     oficiales para escribir sus tipos y su suite de conformidad; no se genera código a partir de él.
@@ -35,9 +35,10 @@ paths:
       description: |
         Requiere el scope `https://api.autotia.com/reports/vehicle-valuation.read`.
 
-        `reportType`, `year` y `odometerKm` son obligatorios; `reportType` debe ser `general-price` y `year` y
-        `odometerKm` deben ser enteros JSON; sin ellos responde 400. El servicio no valida de forma síncrona el
-        resto de los campos: una combinación de vehículo inválida puede terminar luego en un estado `FAILED`.
+        `reportType`, `mark` y `year` son obligatorios. Debe enviarse `model` y `version` juntos, o `search` sin
+        `model` ni `version`. `odometerKm` y `region` son opcionales; la región omitida o vacía solicita precio
+        nacional. `search` acepta entre 1 y 200 caracteres tras recortar espacios y `odometerKm` es un entero de
+        0 a 1.000.000. Una identidad no reconocida puede terminar luego en un estado `FAILED`.
 
         `Idempotency-Key` es opcional. Sin ella cada POST es una solicitud nueva. Con ella, repetir la misma
         clave y el mismo cuerpo reutiliza el pedido existente (la respuesta refleja su estado actual, puede ser
@@ -337,6 +338,97 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  /v1/vehicle-resolution:
+    post:
+      tags: [catalog]
+      operationId: resolveVehicle
+      summary: Resuelve el vehículo, la región y el kilometraje de una solicitud
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleResolutionRequest'
+      responses:
+        '200':
+          description: Vehículo resuelto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResolutionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/CatalogNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/mark-inference:
+    post:
+      tags: [catalog]
+      operationId: inferMark
+      summary: Infiere marcas a partir de texto libre
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkInferenceRequest'
+      responses:
+        '200':
+          description: Resultado de la inferencia de marcas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkInferenceEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/model-inference:
+    post:
+      tags: [catalog]
+      operationId: inferModel
+      summary: Infiere modelos a partir de marca, año y texto libre
+      description: Requiere el scope `https://api.autotia.com/reports/vehicle-catalog.read`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelInferenceRequest'
+      responses:
+        '200':
+          description: Resultado de la inferencia de modelos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelInferenceEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/CatalogNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 components:
   securitySchemes:
     oauth2ClientCredentials:
@@ -482,6 +574,7 @@ components:
         - mark_not_found
         - model_not_found
         - year_not_found
+        - odometer_required
         - quota_exceeded
         - company_quota_exceeded
         - service_unavailable
@@ -517,7 +610,16 @@ components:
         - $ref: '#/components/schemas/GatewayBody'
     OrderRequest:
       type: object
-      required: [reportType, year, odometerKm]
+      required: [reportType, mark, year]
+      oneOf:
+        - required: [model, version]
+          not:
+            required: [search]
+        - required: [search]
+          not:
+            anyOf:
+              - required: [model]
+              - required: [version]
       properties:
         reportType:
           type: string
@@ -529,6 +631,11 @@ components:
         model:
           type: string
           description: Texto (`text`) del modelo tal como lo devuelve el catálogo.
+        search:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Texto para resolver modelo y versión; excluye `model` y `version`.
         year:
           type: integer
         version:
@@ -536,7 +643,12 @@ components:
           description: Texto (`text`) de la versión tal como lo devuelve el catálogo.
         odometerKm:
           type: integer
+          minimum: 0
+          maximum: 1000000
           description: Kilometraje en kilómetros.
+        region:
+          type: string
+          description: Región opcional; omitida o vacía significa precio nacional.
     OrderState:
       type: string
       enum: [PENDING, RUNNING, COMPLETED, FAILED]
@@ -559,6 +671,8 @@ components:
         saleId:
           type: string
           description: Identificador de la venta asociada con prefijo `sal_` (se omite si aún no está asociada).
+        resolution:
+          $ref: '#/components/schemas/Resolution'
     AcceptanceEnvelope:
       allOf:
         - $ref: '#/components/schemas/EnvelopeMeta'
@@ -605,6 +719,8 @@ components:
           $ref: '#/components/schemas/OrderResult'
         failure:
           $ref: '#/components/schemas/Failure'
+        resolution:
+          $ref: '#/components/schemas/Resolution'
     StatusEnvelope:
       allOf:
         - $ref: '#/components/schemas/EnvelopeMeta'
@@ -872,7 +988,7 @@ components:
           description: Cantidad máxima de versiones a devolver (1 a 20, por defecto 5).
     InferredTrim:
       type: object
-      required: [version, confidence]
+      required: [version, confidence, score]
       properties:
         version:
           type: string
@@ -882,9 +998,15 @@ components:
           minimum: 0
           maximum: 100
           description: Preferencia relativa entre candidatos (0 a 100, suma 100 sobre el conjunto completo).
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Preferencia relativa normalizada, no es probabilidad de acierto.
     VersionInferenceResult:
       type: object
-      required: [catalogVersion, outcome, totalCandidates, versions]
+      required: [catalogVersion, outcome, totalCandidates, topMargin, versions]
       properties:
         catalogVersion:
           type: string
@@ -896,6 +1018,10 @@ components:
         totalCandidates:
           type: integer
           description: Total de candidatos compatibles antes de limitar la lista devuelta.
+        topMargin:
+          type: number
+          format: double
+          description: Diferencia entre score del primer y segundo candidato antes de truncar.
         versions:
           type: array
           items:
@@ -908,3 +1034,149 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/VersionInferenceResult'
+    VehicleResolutionRequest:
+      type: object
+      required: [mark, year]
+      properties:
+        mark:
+          type: string
+        year:
+          type: integer
+        model:
+          type: string
+        version:
+          type: string
+        search:
+          type: string
+          minLength: 1
+          maxLength: 200
+        odometerKm:
+          type: integer
+          minimum: 0
+        region:
+          type: string
+    VehicleResolutionResult:
+      type: object
+      required: [mark, model, year, version, region, odometerKm, resolution]
+      properties:
+        mark: { type: string }
+        model: { type: string }
+        year: { type: integer }
+        version: { type: string }
+        region: { type: string, description: Vacía para precio nacional. }
+        odometerKm: { type: integer }
+        resolution:
+          $ref: '#/components/schemas/Resolution'
+    Resolution:
+      type: object
+      required: [catalogVersion, sourceCatalogVersion, referenceYear, certainty, topMargin, fields, selected, alternatives]
+      properties:
+        catalogVersion: { type: string }
+        sourceCatalogVersion: { type: string }
+        usageCurveVersion: { type: string }
+        referenceYear: { type: integer }
+        search: { type: string }
+        certainty: { type: string, enum: [EXACT, HIGH, LOW] }
+        topMargin: { type: number, format: double }
+        fields:
+          type: object
+          required: [model, version, region, odometerKm]
+          properties:
+            model: { $ref: '#/components/schemas/ResolvedStringField' }
+            version: { $ref: '#/components/schemas/ResolvedStringField' }
+            region: { $ref: '#/components/schemas/ResolvedStringField' }
+            odometerKm: { $ref: '#/components/schemas/ResolvedNumberField' }
+        selected:
+          $ref: '#/components/schemas/ResolutionCandidate'
+        alternatives:
+          type: array
+          items: { $ref: '#/components/schemas/ResolutionCandidate' }
+    ResolvedStringField:
+      type: object
+      required: [value, source]
+      properties:
+        value: { type: string }
+        source: { type: string, enum: [EXACT, INFERRED, NATIONAL] }
+    ResolvedNumberField:
+      type: object
+      required: [value, source]
+      properties:
+        value: { type: integer }
+        source: { type: string, enum: [PROVIDED, USAGE_CURVE_YEAR_MEDIAN, USAGE_CURVE_MODEL_MEDIAN] }
+    ResolutionCandidate:
+      type: object
+      required: [model, version, confidence, score]
+      properties:
+        model: { type: string }
+        version: { type: string }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        score: { type: number, format: double, minimum: 0, maximum: 100 }
+    MarkInferenceRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 200 }
+        limit: { type: integer, minimum: 1, maximum: 20, default: 5 }
+    MarkCandidate:
+      type: object
+      required: [mark, name, confidence, score]
+      properties:
+        mark: { type: string }
+        name: { type: string }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        score: { type: number, format: double, minimum: 0, maximum: 100 }
+    MarkInferenceResult:
+      type: object
+      required: [catalogVersion, outcome, totalCandidates, topMargin, marks]
+      properties:
+        catalogVersion: { type: string }
+        outcome: { type: string, enum: [matched, no_match] }
+        totalCandidates: { type: integer }
+        topMargin: { type: number, format: double }
+        marks: { type: array, items: { $ref: '#/components/schemas/MarkCandidate' } }
+    MarkInferenceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/MarkInferenceResult' }
+    ModelInferenceRequest:
+      type: object
+      required: [mark, year, text]
+      properties:
+        mark: { type: string }
+        year: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 200 }
+        limit: { type: integer, minimum: 1, maximum: 20, default: 5 }
+    ModelCandidate:
+      type: object
+      required: [model, name, confidence, score]
+      properties:
+        model: { type: string }
+        name: { type: string }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        score: { type: number, format: double, minimum: 0, maximum: 100 }
+    ModelInferenceResult:
+      type: object
+      required: [catalogVersion, outcome, totalCandidates, topMargin, models]
+      properties:
+        catalogVersion: { type: string }
+        outcome: { type: string, enum: [matched, no_match] }
+        totalCandidates: { type: integer }
+        topMargin: { type: number, format: double }
+        models: { type: array, items: { $ref: '#/components/schemas/ModelCandidate' } }
+    ModelInferenceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/ModelInferenceResult' }
+    VehicleResolutionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/VehicleResolutionResult' }

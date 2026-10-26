@@ -1,5 +1,11 @@
 # Registro de cambios
 
+## [2.0.0] - Unreleased
+
+- `orders.create` admite identificación por `search`, kilometraje y región opcionales, y devuelve `resolution`.
+- Se agregan `catalog.resolveVehicle`, `catalog.inferMark` y `catalog.inferModel`.
+- La inferencia de versión incluye `score` y `topMargin`.
+
 ## [1.0.1] - 2026-10-20
 
 - Documentación actualizada: se remueve aviso de desarrollo en README y se describe el flujo vigente de publicación.
