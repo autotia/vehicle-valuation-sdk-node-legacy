@@ -5,8 +5,14 @@ import type {
   CatalogModels,
   CatalogTrims,
   CatalogYears,
+  MarkInferenceRequest,
+  MarkInferenceResult,
+  ModelInferenceRequest,
+  ModelInferenceResult,
   TrimInferenceRequest,
   TrimInferenceResult,
+  VehicleResolutionRequest,
+  VehicleResolutionResult,
 } from "./types";
 
 export class CatalogResource {
@@ -80,6 +86,45 @@ export class CatalogResource {
       "POST",
       "/v1/version-inference",
       body,
+      options,
+    );
+  }
+
+  public resolveVehicle(
+    input: VehicleResolutionRequest,
+    options: CallOptions = {},
+  ): Promise<VehicleResolutionResult> {
+    return requestData(
+      this.config,
+      "POST",
+      "/v1/vehicle-resolution",
+      input,
+      options,
+    );
+  }
+
+  public inferMark(
+    input: MarkInferenceRequest,
+    options: CallOptions = {},
+  ): Promise<MarkInferenceResult> {
+    return requestData(
+      this.config,
+      "POST",
+      "/v1/mark-inference",
+      input,
+      options,
+    );
+  }
+
+  public inferModel(
+    input: ModelInferenceRequest,
+    options: CallOptions = {},
+  ): Promise<ModelInferenceResult> {
+    return requestData(
+      this.config,
+      "POST",
+      "/v1/model-inference",
+      input,
       options,
     );
   }

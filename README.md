@@ -64,6 +64,9 @@ que indica la API, hasta que termina o vence el plazo.
 | `client.orders.get(orderId, options?)` | Consulta el estado de un pedido. |
 | `client.orders.waitUntilComplete(orderId, options?)` | Espera y devuelve el estado terminal (`COMPLETED` o lanza `OrderFailedError`). |
 | `client.catalog.inferTrim(input, options?)` | Infiere las versiones del catálogo a partir de marca, modelo, año y texto libre. |
+| `client.catalog.resolveVehicle(input, options?)` | Resuelve modelo, versión, región y kilometraje antes de crear un pedido. |
+| `client.catalog.inferMark(input, options?)` | Infiere marcas a partir de texto libre. |
+| `client.catalog.inferModel(input, options?)` | Infiere modelos a partir de marca, año y texto libre. |
 | `client.catalog.listMarks(options?)` | Lista las marcas del catálogo. |
 | `client.catalog.listModels(mark, options?)` | Lista los modelos de una marca. |
 | `client.catalog.listYears(mark, model, options?)` | Lista los años disponibles de un modelo. |
@@ -146,6 +149,14 @@ main().catch(function (error) {
 
 El campo `confidence` devuelto en cada versión inferida representa la **preferencia relativa entre los candidatos evaluados** y suma 100 sobre el conjunto completo de versiones analizadas; no es una probabilidad estadística de acierto. Si un solo candidato resulta compatible con el texto, su `confidence` es 100.
 
+Cada versión también incluye `score` (preferencia relativa normalizada de 0 a 100) y el resultado de inferencia incluye `topMargin`, la diferencia entre los dos primeros `score` antes de limitar la lista. Ninguno representa una probabilidad de acierto.
+
+## Resolución previa
+
+`catalog.resolveVehicle` acepta `mark` y `year`, además de `model` + `version` para identificación exacta o `search` para identificación inferida. Estos modos son excluyentes. `region` y `odometerKm` son opcionales: si falta la región, se solicita precio nacional; si falta el kilometraje, se usa la mediana disponible de la curva de uso. El resultado incluye el vehículo resuelto y `resolution`, con la certeza, los campos usados y las alternativas.
+
+`orders.create` acepta la misma identificación flexible. El `202` incluye `resolution` y el resultado de `orders.get` también la expone.
+
 ## Autenticación
 
 El SDK obtiene y renueva el token OAuth2 (`client_credentials`) automáticamente y lo reutiliza mientras está
@@ -174,10 +185,9 @@ Todos los errores heredan de `AutotiaError`, que expone `status`, `code`, `apiRe
 | `AuthenticationError` | Credenciales inválidas o token rechazado (401). | Una vez, renovando el token |
 | `PermissionDeniedError` | Cliente sin permiso o suspendido (403). | No |
 | `NotFoundError` | Vehículo, marca, modelo o año inexistente (404). | No |
-| `ConflictError` | La `Idempotency-Key` ya se usó con otra solicitud (409). | No |
-| `UnprocessableEntityError` | No hay datos suficientes para tasar (422). | No |
+| `OrderFailedError` | La tasación termina en `FAILED`; `data_unavailable` viaja en `failure` dentro de HTTP 200. | No |
 | `QuotaExceededError` | Se agotó la cuota contratada (429). | No |
-| `RateLimitError` | Demasiadas solicitudes por segundo (429). | Sí, con espera exponencial |
+| `RateLimitError` | Demasiadas solicitudes por segundo (429). | Sí, respeta `Retry-After` hasta 10 segundos; si falta, usa backoff exponencial con jitter |
 | `InternalServerError` | Servicio no disponible o tiempo agotado (503, 504). | Sí, con espera exponencial |
 | `AutotiaConnectionError` | Falla de red, DNS o conexión. | Sí, con espera exponencial |
 | `WaiterTimeoutError` | `waitUntilComplete` superó su plazo. | No |

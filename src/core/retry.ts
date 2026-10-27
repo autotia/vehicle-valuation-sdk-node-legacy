@@ -30,6 +30,21 @@ export function retryDelay(
   return Math.floor(random() * (ceiling + 1));
 }
 
+export function retryAfterDelay(
+  value: string | undefined,
+  now: number = Date.now(),
+): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value.trim());
+  const parsed =
+    Number.isFinite(seconds) && seconds >= 0
+      ? seconds * 1000
+      : Date.parse(value) - now;
+  return Number.isFinite(parsed) && parsed >= 0
+    ? Math.min(10000, parsed)
+    : undefined;
+}
+
 export function isTransient(error: Error): boolean {
   const name = error.name;
   return (

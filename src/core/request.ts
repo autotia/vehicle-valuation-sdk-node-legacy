@@ -5,7 +5,12 @@ import {
   AutotiaError,
   makeHttpError,
 } from "./errors";
-import { getRetrySettings, isTransient, retryDelay } from "./retry";
+import {
+  getRetrySettings,
+  isTransient,
+  retryAfterDelay,
+  retryDelay,
+} from "./retry";
 import type { CallOptions, Envelope, HttpMethod, Transport } from "./types";
 
 export interface RequestConfig {
@@ -65,7 +70,7 @@ export async function requestData<T>(
         continue;
       }
       if (response.status < 200 || response.status >= 300)
-        throw makeHttpError(response.status, envelope);
+        throw makeHttpError(response.status, envelope, response.headers);
       if (
         !envelope ||
         !Object.prototype.hasOwnProperty.call(envelope, "data")
@@ -74,12 +79,15 @@ export async function requestData<T>(
           status: response.status,
         });
       }
-      if (envelope.error) throw makeHttpError(response.status, envelope);
+      if (envelope.error)
+        throw makeHttpError(response.status, envelope, response.headers);
       return envelope.data as T;
     } catch (error) {
       const sdkError = asSdkError(error);
       if (!isTransient(sdkError) || retries >= retry.maxRetries) throw sdkError;
-      const delay = retryDelay(retries, retry.baseDelayMs, retry.maxDelayMs);
+      const delay =
+        retryAfterDelay(sdkError.retryAfter) ??
+        retryDelay(retries, retry.baseDelayMs, retry.maxDelayMs);
       retries += 1;
       const remaining = timeout - (Date.now() - started);
       if (remaining <= delay)
