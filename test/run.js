@@ -5,6 +5,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const sdk = require("../dist");
+const { retryAfterDelay } = require("../dist/core/retry");
 
 const tests = [];
 function test(name, fn) {
@@ -177,6 +178,29 @@ test("reintenta throttling con dos reintentos por defecto", async () => {
   }
 });
 
+test("429 respeta Retry-After en segundos", async () => {
+  const delays = [];
+  const originalSetTimeout = global.setTimeout;
+  const transport = memoryTransport([
+    {
+      status: 429,
+      headers: { "content-type": "text/plain", "retry-after": "2" },
+      body: "Too Many Requests",
+    },
+    json(200, { catalogVersion: "v1", marks: [] }),
+  ]);
+  global.setTimeout = (callback, delay) => {
+    delays.push(delay);
+    return originalSetTimeout(callback, 0);
+  };
+  try {
+    await clientWith(transport).catalog.listMarks();
+    assert.strictEqual(delays[0], 2000);
+  } finally {
+    global.setTimeout = originalSetTimeout;
+  }
+});
+
 test("no reintenta cuotas comerciales agotadas", async () => {
   const transport = memoryTransport([
     json(429, null, {
@@ -192,6 +216,81 @@ test("no reintenta cuotas comerciales agotadas", async () => {
     (error) => error instanceof sdk.QuotaExceededError,
   );
   assert.strictEqual(transport.counts().apiCalls, 1);
+});
+
+test("Retry-After acepta segundos y fecha HTTP con tope", async () => {
+  const now = Date.UTC(2026, 0, 1);
+  assert.strictEqual(retryAfterDelay("2", now), 2000);
+  assert.strictEqual(
+    retryAfterDelay(new Date(now + 3000).toUTCString(), now),
+    3000,
+  );
+  assert.strictEqual(retryAfterDelay("30", now), 10000);
+  assert.strictEqual(retryAfterDelay("invalid", now), undefined);
+});
+
+test("reintento POST conserva clave idempotente y replay pendiente conserva orderId", async () => {
+  const requests = [];
+  const transport = memoryTransport([
+    {
+      status: 503,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data: null, error: { code: "unavailable" } }),
+    },
+    json(202, {
+      orderId: "ordb2b_replayed",
+      reportType: "general-price",
+      status: "PENDING",
+      pollAfterMs: 17,
+    }),
+    json(202, {
+      orderId: "ordb2b_replayed",
+      reportType: "general-price",
+      status: "PENDING",
+      pollAfterMs: 17,
+    }),
+  ]);
+  const originalRequest = transport.request;
+  transport.request = async (request) => {
+    if (request.url.indexOf("/oauth2/token") === -1) requests.push(request);
+    return originalRequest(request);
+  };
+  const client = clientWith(transport);
+  const input = {
+    reportType: "general-price",
+    mark: "Toyota",
+    model: "Yaris",
+    version: "1.5",
+    year: 2020,
+  };
+  const first = await client.orders.create(input, {
+    idempotencyKey: "stable-key",
+  });
+  const replay = await client.orders.create(input, {
+    idempotencyKey: "stable-key",
+  });
+  assert.strictEqual(first.orderId, replay.orderId);
+  assert.deepStrictEqual(
+    requests.map((request) => request.headers["Idempotency-Key"]),
+    ["stable-key", "stable-key", "stable-key"],
+  );
+});
+
+test("replay FAILED conserva failure y omite resolution", async () => {
+  const transport = memoryTransport([
+    json(200, {
+      orderId: "ordb2b_failed",
+      reportType: "general-price",
+      status: "FAILED",
+      failure: { code: "data_unavailable", description: "sin datos" },
+    }),
+  ]);
+  const status = await clientWith(transport).orders.get("ordb2b_failed");
+  assert.deepStrictEqual(status.failure, {
+    code: "data_unavailable",
+    description: "sin datos",
+  });
+  assert.strictEqual(status.resolution, undefined);
 });
 
 test("create genera una clave Idempotency-Key UUID v4", async () => {
@@ -513,6 +612,9 @@ test("conformidad con los fixtures compartidos", async () => {
             item.expected.code,
             item.id,
           );
+          if (item.expected.message !== undefined) {
+            assert.strictEqual(error.message, item.expected.message, item.id);
+          }
           return true;
         });
       }
@@ -711,7 +813,6 @@ test("orders.createFromTrimText: matched crea pedido con versions[0].version", a
     model: "Yaris",
     year: 2020,
     trimText: "1.5 GL sedan mecanico",
-    odometerKm: 45000,
   });
 
   assert.strictEqual(inferenceBody.text, "1.5 GL sedan mecanico");
@@ -719,7 +820,10 @@ test("orders.createFromTrimText: matched crea pedido con versions[0].version", a
   assert.strictEqual(orderBody.mark, "Toyota");
   assert.strictEqual(orderBody.model, "Yaris");
   assert.strictEqual(orderBody.year, 2020);
-  assert.strictEqual(orderBody.odometerKm, 45000);
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(orderBody, "odometerKm"),
+    false,
+  );
   assert.strictEqual(res.selectedVersion, "1.5 GL MT");
   assert.strictEqual(res.order.orderId, "ordb2b_from_trim_1");
   assert.strictEqual(res.inference.outcome, "matched");

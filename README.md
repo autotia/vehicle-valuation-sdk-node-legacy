@@ -185,10 +185,9 @@ Todos los errores heredan de `AutotiaError`, que expone `status`, `code`, `apiRe
 | `AuthenticationError` | Credenciales inválidas o token rechazado (401). | Una vez, renovando el token |
 | `PermissionDeniedError` | Cliente sin permiso o suspendido (403). | No |
 | `NotFoundError` | Vehículo, marca, modelo o año inexistente (404). | No |
-| `ConflictError` | La `Idempotency-Key` ya se usó con otra solicitud (409). | No |
-| `UnprocessableEntityError` | No hay datos suficientes para tasar (422). | No |
+| `OrderFailedError` | La tasación termina en `FAILED`; `data_unavailable` viaja en `failure` dentro de HTTP 200. | No |
 | `QuotaExceededError` | Se agotó la cuota contratada (429). | No |
-| `RateLimitError` | Demasiadas solicitudes por segundo (429). | Sí, con espera exponencial |
+| `RateLimitError` | Demasiadas solicitudes por segundo (429). | Sí, respeta `Retry-After` hasta 10 segundos; si falta, usa backoff exponencial con jitter |
 | `InternalServerError` | Servicio no disponible o tiempo agotado (503, 504). | Sí, con espera exponencial |
 | `AutotiaConnectionError` | Falla de red, DNS o conexión. | Sí, con espera exponencial |
 | `WaiterTimeoutError` | `waitUntilComplete` superó su plazo. | No |

@@ -1,5 +1,13 @@
 # Registro de cambios
 
+## Próxima versión (propuesta: 3.0.0, no publicada)
+
+- Alinear el contrato OpenAPI, la idempotencia y las respuestas terminales con la API B2B vigente.
+- Restringir los tipos de solicitud a `general-price` y a los modos de identificación exacto o flexible; `odometerKm` queda opcional en `createFromTrimText`.
+- Tolerar campos adicionales en los objetos de respuesta.
+- Respetar `pollAfterMs` y `Retry-After` (hasta 10 s), con backoff exponencial con jitter cuando `Retry-After` no esté disponible.
+- Unificar el mensaje del error 429 sin envelope y ampliar los casos de conformidad.
+
 ## [2.0.0] - Unreleased
 
 - `orders.create` admite identificación por `search`, kilometraje y región opcionales, y devuelve `resolution`.

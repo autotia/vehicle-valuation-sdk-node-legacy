@@ -6,6 +6,7 @@ export interface ErrorDetails {
   apiRequestId?: string;
   executionId?: string;
   cause?: unknown;
+  retryAfter?: string;
 }
 
 export class AutotiaError extends Error {
@@ -14,6 +15,7 @@ export class AutotiaError extends Error {
   public apiRequestId?: string;
   public executionId?: string;
   public cause?: unknown;
+  public retryAfter?: string;
 
   public constructor(message: string, details: ErrorDetails = {}) {
     super(message);
@@ -24,6 +26,7 @@ export class AutotiaError extends Error {
     this.apiRequestId = details.apiRequestId;
     this.executionId = details.executionId;
     this.cause = details.cause;
+    this.retryAfter = details.retryAfter;
   }
 }
 
@@ -66,6 +69,7 @@ export function makeHttpError(
         executionId?: string;
       }
     | undefined,
+  headers?: Record<string, string | string[] | undefined>,
 ): AutotiaError {
   const apiError =
     envelope && envelope.error && typeof envelope.error === "object"
@@ -75,7 +79,9 @@ export function makeHttpError(
   const message =
     typeof apiError.description === "string"
       ? apiError.description
-      : "La API devolvió un error HTTP.";
+      : status === 429
+        ? "Límite de solicitudes alcanzado."
+        : "La API devolvió un error HTTP.";
   const details: ErrorDetails = {
     status: status,
     code: code,
@@ -87,6 +93,7 @@ export function makeHttpError(
       envelope && typeof envelope.executionId === "string"
         ? envelope.executionId
         : undefined,
+    retryAfter: headerValue(headers, "retry-after"),
   };
   if (status === 400) return new BadRequestError(message, details);
   if (status === 401) return new AuthenticationError(message, details);
@@ -104,4 +111,13 @@ export function makeHttpError(
   if (status === 503 || status === 504)
     return new InternalServerError(message, details);
   return new AutotiaError(message, details);
+}
+
+function headerValue(
+  headers: Record<string, string | string[] | undefined> | undefined,
+  name: string,
+): string | undefined {
+  if (!headers) return undefined;
+  const value = headers[name] ?? headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
 }

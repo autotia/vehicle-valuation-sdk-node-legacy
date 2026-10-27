@@ -41,4 +41,5 @@ export interface Envelope<T> {
   durationMs?: number;
   pageToken?: string;
   error?: { code?: string; description?: string };
+  [key: string]: unknown;
 }

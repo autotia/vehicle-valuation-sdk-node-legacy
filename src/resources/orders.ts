@@ -124,7 +124,9 @@ export class OrdersResource {
       model: input.model,
       year: input.year,
       version: selectedVersion,
-      odometerKm: input.odometerKm,
+      ...(input.odometerKm !== undefined
+        ? { odometerKm: input.odometerKm }
+        : {}),
     };
 
     const order = await this.create(orderRequest, orderOptions);
@@ -136,14 +138,20 @@ export class OrdersResource {
     };
   }
 
-  public get(orderId: string, options: CallOptions = {}): Promise<OrderStatus> {
-    return requestData(
+  public async get(
+    orderId: string,
+    options: CallOptions = {},
+  ): Promise<OrderStatus> {
+    const status = await requestData<OrderStatus>(
       this.config,
       "GET",
       `/v1/orders/${encodeURIComponent(orderId)}`,
       undefined,
       options,
     );
+    if (typeof status.pollAfterMs === "number")
+      this.pollIntervals[orderId] = status.pollAfterMs;
+    return status;
   }
 
   public async waitUntilComplete(

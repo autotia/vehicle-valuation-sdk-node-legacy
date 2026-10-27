@@ -1,17 +1,17 @@
 import type { CallOptions } from "../core/types";
 
-export type ReportType = "general-price" | string;
+export type ReportType = "general-price";
 
-export interface OrderRequest {
-  reportType: "general-price" | string;
+export type OrderRequest = {
+  reportType: ReportType;
   mark: string;
-  model?: string;
   year: number;
-  version?: string;
-  search?: string;
   odometerKm?: number;
   region?: string;
-}
+} & (
+  | { model: string; version: string; search?: never }
+  | { search: string; model?: never; version?: never }
+);
 
 export interface OrderAcceptance {
   orderId: string;
@@ -20,11 +20,13 @@ export interface OrderAcceptance {
   pollAfterMs: number;
   saleId?: string;
   resolution?: Resolution;
+  [key: string]: unknown;
 }
 
 export interface OrderFailure {
   code: string;
   description: string;
+  [key: string]: unknown;
 }
 
 export interface OrderResultVehicle {
@@ -35,6 +37,7 @@ export interface OrderResultVehicle {
   canonicalVersion?: string;
   versionResolution: string;
   versionApplied: boolean;
+  [key: string]: unknown;
 }
 
 export interface OrderMarketContext {
@@ -42,17 +45,20 @@ export interface OrderMarketContext {
   purchaseSellerType: string;
   saleSellerType: string;
   odometerKm: number;
+  [key: string]: unknown;
 }
 
 export interface OrderPriceOption {
   percentile: number;
   priceCLP: number;
+  [key: string]: unknown;
 }
 
 export interface OrderPriceSide {
   sellerType: string;
   qualityScore: number;
   options: OrderPriceOption[];
+  [key: string]: unknown;
 }
 
 export interface OrderMarginRange {
@@ -62,6 +68,7 @@ export interface OrderMarginRange {
   salePriceCLP: number;
   marginCLP: number;
   marginPercent: number;
+  [key: string]: unknown;
 }
 
 export interface OrderGrossMarginEstimate {
@@ -69,18 +76,21 @@ export interface OrderGrossMarginEstimate {
   disclaimer: string;
   maxMargin: OrderMarginRange;
   minMargin: OrderMarginRange;
+  [key: string]: unknown;
 }
 
 export interface OrderFreshness {
   lastValidLogicalDay: string;
   ageDays: number;
   status: string;
+  [key: string]: unknown;
 }
 
 export interface OrderMethodology {
   qualityVersion: string;
   smoothingVersion: string;
   algorithmVersion: string;
+  [key: string]: unknown;
 }
 
 export interface OrderResultData {
@@ -97,16 +107,19 @@ export interface OrderResultData {
 export interface OrderResult {
   schemaVersion: "general-price-result-v1" | string;
   data: OrderResultData | Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface OrderStatus {
   orderId: string;
   reportType: string;
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  pollAfterMs?: number;
   saleId?: string;
   result?: OrderResult;
   failure?: OrderFailure;
   resolution?: Resolution;
+  [key: string]: unknown;
 }
 
 export type ResolutionCertainty = "EXACT" | "HIGH" | "LOW" | string;
@@ -122,11 +135,13 @@ export type ResolutionFieldSource =
 export interface ResolvedStringField {
   value: string;
   source: ResolutionFieldSource;
+  [key: string]: unknown;
 }
 
 export interface ResolvedNumberField {
   value: number;
   source: ResolutionFieldSource;
+  [key: string]: unknown;
 }
 
 export interface ResolutionCandidate {
@@ -134,6 +149,7 @@ export interface ResolutionCandidate {
   version: string;
   confidence: number;
   score: number;
+  [key: string]: unknown;
 }
 
 export interface Resolution {
@@ -144,24 +160,30 @@ export interface Resolution {
   search?: string;
   certainty: ResolutionCertainty;
   topMargin: number;
-  fields: {
-    model: ResolvedStringField;
-    version: ResolvedStringField;
-    region: ResolvedStringField;
-    odometerKm: ResolvedNumberField;
-  };
+  fields: ResolutionFields;
   selected: ResolutionCandidate;
   alternatives: ResolutionCandidate[];
+  [key: string]: unknown;
+}
+
+export interface ResolutionFields {
+  model: ResolvedStringField;
+  version: ResolvedStringField;
+  region: ResolvedStringField;
+  odometerKm: ResolvedNumberField;
+  [key: string]: unknown;
 }
 
 export interface CatalogRef {
   key: string;
   text: string;
+  [key: string]: unknown;
 }
 
 export interface CatalogMarks {
   catalogVersion: string;
   marks: CatalogRef[];
+  [key: string]: unknown;
 }
 
 export interface CatalogModel extends CatalogRef {
@@ -172,6 +194,7 @@ export interface CatalogModels {
   catalogVersion: string;
   mark: CatalogRef;
   models: CatalogModel[];
+  [key: string]: unknown;
 }
 
 export interface CatalogYears {
@@ -179,6 +202,7 @@ export interface CatalogYears {
   mark: CatalogRef;
   model: CatalogRef;
   years: number[];
+  [key: string]: unknown;
 }
 
 export interface CatalogTrims {
@@ -187,6 +211,7 @@ export interface CatalogTrims {
   model: CatalogRef;
   year: number;
   trims: CatalogRef[];
+  [key: string]: unknown;
 }
 
 export interface TrimInferenceRequest {
@@ -207,6 +232,7 @@ export interface InferredTrim {
   version: string;
   confidence: number;
   score: number;
+  [key: string]: unknown;
 }
 
 export interface TrimInferenceResult {
@@ -215,17 +241,18 @@ export interface TrimInferenceResult {
   totalCandidates: number;
   topMargin: number;
   versions: InferredTrim[];
+  [key: string]: unknown;
 }
 
-export interface VehicleResolutionRequest {
+export type VehicleResolutionRequest = {
   mark: string;
   year: number;
-  model?: string;
-  version?: string;
-  search?: string;
   odometerKm?: number;
   region?: string;
-}
+} & (
+  | { model: string; version: string; search?: never }
+  | { search: string; model?: never; version?: never }
+);
 
 export interface VehicleResolutionResult {
   mark: string;
@@ -235,6 +262,7 @@ export interface VehicleResolutionResult {
   region: string;
   odometerKm: number;
   resolution: Resolution;
+  [key: string]: unknown;
 }
 
 export interface MarkInferenceRequest {
@@ -247,6 +275,7 @@ export interface MarkCandidate {
   name: string;
   confidence: number;
   score: number;
+  [key: string]: unknown;
 }
 
 export interface MarkInferenceResult {
@@ -255,6 +284,7 @@ export interface MarkInferenceResult {
   totalCandidates: number;
   topMargin: number;
   marks: MarkCandidate[];
+  [key: string]: unknown;
 }
 
 export interface ModelInferenceRequest {
@@ -269,6 +299,7 @@ export interface ModelCandidate {
   name: string;
   confidence: number;
   score: number;
+  [key: string]: unknown;
 }
 
 export interface ModelInferenceResult {
@@ -277,15 +308,16 @@ export interface ModelInferenceResult {
   totalCandidates: number;
   topMargin: number;
   models: ModelCandidate[];
+  [key: string]: unknown;
 }
 
 export interface OrderFromTrimTextRequest {
-  reportType: "general-price" | string;
+  reportType: ReportType;
   mark: string;
   model: string;
   year: number;
   trimText: string;
-  odometerKm: number;
+  odometerKm?: number;
   limit?: number;
 }
 

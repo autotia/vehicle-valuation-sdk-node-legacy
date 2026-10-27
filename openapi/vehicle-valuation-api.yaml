@@ -42,7 +42,7 @@ paths:
 
         `Idempotency-Key` es opcional. Sin ella cada POST es una solicitud nueva. Con ella, repetir la misma
         clave y el mismo cuerpo reutiliza el pedido existente (la respuesta refleja su estado actual, puede ser
-        200 si ya terminó) y repetir la clave con otro cuerpo responde 409. El registro de idempotencia dura
+        200 si ya terminó) y repetir la clave con otro cuerpo responde 400 `invalid_request`. El registro de idempotencia dura
         24 horas. El largo máximo de la clave no está confirmado; se recomienda una clave corta y imprimible.
 
         Si falla la comunicación interna después de aceptar la solicitud, la respuesta sigue siendo 202
@@ -82,22 +82,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '422':
-          description: |
-            Código reservado `data_unavailable` en el catálogo público. El handler revisado no emite actualmente
-            este estado HTTP; la indisponibilidad de datos se informa como fallo terminal dentro de una respuesta
-            200 de polling.
-          x-currently-emitted: false
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '409':
-          description: La `Idempotency-Key` ya se usó con un cuerpo distinto. Código `invalid_request`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -562,8 +546,8 @@ components:
     ErrorCode:
       type: string
       description: |
-        Vocabulario público de `error.code`. `data_unavailable` está reservado: hoy se informa solo dentro de
-        `data.failure` de una tasación terminal.
+        Vocabulario público de `error.code`. `data_unavailable` se informa dentro de `data.failure` cuando una
+        tasación termina en estado `FAILED` con HTTP 200; no es una respuesta HTTP 422.
       enum:
         - invalid_request
         - unauthorized
@@ -610,6 +594,7 @@ components:
         - $ref: '#/components/schemas/GatewayBody'
     OrderRequest:
       type: object
+      additionalProperties: false
       required: [reportType, mark, year]
       oneOf:
         - required: [model, version]
@@ -654,6 +639,7 @@ components:
       enum: [PENDING, RUNNING, COMPLETED, FAILED]
     Acceptance:
       type: object
+      additionalProperties: true
       required: [orderId, reportType, status, pollAfterMs]
       properties:
         orderId:
@@ -692,6 +678,7 @@ components:
         - upstream_timeout
     Failure:
       type: object
+      additionalProperties: true
       required: [code, description]
       properties:
         code:
@@ -700,6 +687,7 @@ components:
           type: string
     OrderStatus:
       type: object
+      additionalProperties: true
       description: |
         `result` solo está presente en `COMPLETED` y `failure` solo en `FAILED`. `saleId` se omite si la venta aún no está asociada.
       required: [orderId, reportType, status]
@@ -731,6 +719,7 @@ components:
               $ref: '#/components/schemas/OrderStatus'
     OrderResult:
       type: object
+      additionalProperties: true
       required: [schemaVersion, data]
       properties:
         schemaVersion:
@@ -740,6 +729,7 @@ components:
           $ref: '#/components/schemas/OrderResultData'
     OrderResultData:
       type: object
+      additionalProperties: true
       required: [vehicle, marketContext, purchase, sale, grossMarginEstimate, freshness, methodology]
       properties:
         vehicle:
@@ -758,6 +748,7 @@ components:
           $ref: '#/components/schemas/Methodology'
     ResultVehicle:
       type: object
+      additionalProperties: true
       required: [mark, model, year, version, versionResolution, versionApplied]
       properties:
         mark:
@@ -777,6 +768,7 @@ components:
           type: boolean
     MarketContext:
       type: object
+      additionalProperties: true
       required: [region, purchaseSellerType, saleSellerType, odometerKm]
       properties:
         region:
@@ -789,6 +781,7 @@ components:
           type: integer
     PriceSide:
       type: object
+      additionalProperties: true
       required: [sellerType, qualityScore, options]
       properties:
         sellerType:
@@ -801,6 +794,7 @@ components:
             $ref: '#/components/schemas/PriceOption'
     PriceOption:
       type: object
+      additionalProperties: true
       required: [percentile, priceCLP]
       properties:
         percentile:
@@ -810,6 +804,7 @@ components:
           format: int64
     GrossMarginEstimate:
       type: object
+      additionalProperties: true
       required: [qualityScore, disclaimer, maxMargin, minMargin]
       properties:
         qualityScore:
@@ -822,6 +817,7 @@ components:
           $ref: '#/components/schemas/MarginRange'
     MarginRange:
       type: object
+      additionalProperties: true
       required: [purchasePercentile, salePercentile, purchasePriceCLP, salePriceCLP, marginCLP, marginPercent]
       properties:
         purchasePercentile:
@@ -842,6 +838,7 @@ components:
           format: double
     Freshness:
       type: object
+      additionalProperties: true
       required: [lastValidLogicalDay, ageDays, status]
       properties:
         lastValidLogicalDay:
@@ -853,6 +850,7 @@ components:
           type: string
     Methodology:
       type: object
+      additionalProperties: true
       required: [qualityVersion, smoothingVersion, algorithmVersion]
       properties:
         qualityVersion:
@@ -863,6 +861,7 @@ components:
           type: string
     CatalogRef:
       type: object
+      additionalProperties: true
       required: [key, text]
       properties:
         key:
@@ -873,6 +872,7 @@ components:
           description: Texto para usar en el cuerpo de una solicitud de tasación.
     CatalogMarks:
       type: object
+      additionalProperties: true
       required: [catalogVersion, marks]
       properties:
         catalogVersion:
@@ -901,6 +901,7 @@ components:
                 type: integer
     CatalogModels:
       type: object
+      additionalProperties: true
       required: [catalogVersion, mark, models]
       properties:
         catalogVersion:
@@ -921,6 +922,7 @@ components:
               $ref: '#/components/schemas/CatalogModels'
     CatalogYears:
       type: object
+      additionalProperties: true
       required: [catalogVersion, mark, model, years]
       properties:
         catalogVersion:
@@ -943,6 +945,7 @@ components:
               $ref: '#/components/schemas/CatalogYears'
     CatalogTrims:
       type: object
+      additionalProperties: true
       required: [catalogVersion, mark, model, year, trims]
       properties:
         catalogVersion:
@@ -967,6 +970,7 @@ components:
               $ref: '#/components/schemas/CatalogTrims'
     VersionInferenceRequest:
       type: object
+      additionalProperties: false
       required: [mark, model, year, text]
       properties:
         mark:
@@ -988,6 +992,7 @@ components:
           description: Cantidad máxima de versiones a devolver (1 a 20, por defecto 5).
     InferredTrim:
       type: object
+      additionalProperties: true
       required: [version, confidence, score]
       properties:
         version:
@@ -1006,6 +1011,7 @@ components:
           description: Preferencia relativa normalizada, no es probabilidad de acierto.
     VersionInferenceResult:
       type: object
+      additionalProperties: true
       required: [catalogVersion, outcome, totalCandidates, topMargin, versions]
       properties:
         catalogVersion:
@@ -1036,7 +1042,17 @@ components:
               $ref: '#/components/schemas/VersionInferenceResult'
     VehicleResolutionRequest:
       type: object
+      additionalProperties: false
       required: [mark, year]
+      oneOf:
+        - required: [model, version]
+          not:
+            required: [search]
+        - required: [search]
+          not:
+            anyOf:
+              - required: [model]
+              - required: [version]
       properties:
         mark:
           type: string
@@ -1057,6 +1073,7 @@ components:
           type: string
     VehicleResolutionResult:
       type: object
+      additionalProperties: true
       required: [mark, model, year, version, region, odometerKm, resolution]
       properties:
         mark: { type: string }
@@ -1069,6 +1086,7 @@ components:
           $ref: '#/components/schemas/Resolution'
     Resolution:
       type: object
+      additionalProperties: true
       required: [catalogVersion, sourceCatalogVersion, referenceYear, certainty, topMargin, fields, selected, alternatives]
       properties:
         catalogVersion: { type: string }
@@ -1080,6 +1098,7 @@ components:
         topMargin: { type: number, format: double }
         fields:
           type: object
+          additionalProperties: true
           required: [model, version, region, odometerKm]
           properties:
             model: { $ref: '#/components/schemas/ResolvedStringField' }
@@ -1093,18 +1112,21 @@ components:
           items: { $ref: '#/components/schemas/ResolutionCandidate' }
     ResolvedStringField:
       type: object
+      additionalProperties: true
       required: [value, source]
       properties:
         value: { type: string }
         source: { type: string, enum: [EXACT, INFERRED, NATIONAL] }
     ResolvedNumberField:
       type: object
+      additionalProperties: true
       required: [value, source]
       properties:
         value: { type: integer }
         source: { type: string, enum: [PROVIDED, USAGE_CURVE_YEAR_MEDIAN, USAGE_CURVE_MODEL_MEDIAN] }
     ResolutionCandidate:
       type: object
+      additionalProperties: true
       required: [model, version, confidence, score]
       properties:
         model: { type: string }
@@ -1113,12 +1135,14 @@ components:
         score: { type: number, format: double, minimum: 0, maximum: 100 }
     MarkInferenceRequest:
       type: object
+      additionalProperties: false
       required: [text]
       properties:
         text: { type: string, minLength: 1, maxLength: 200 }
         limit: { type: integer, minimum: 1, maximum: 20, default: 5 }
     MarkCandidate:
       type: object
+      additionalProperties: true
       required: [mark, name, confidence, score]
       properties:
         mark: { type: string }
@@ -1127,6 +1151,7 @@ components:
         score: { type: number, format: double, minimum: 0, maximum: 100 }
     MarkInferenceResult:
       type: object
+      additionalProperties: true
       required: [catalogVersion, outcome, totalCandidates, topMargin, marks]
       properties:
         catalogVersion: { type: string }
@@ -1143,6 +1168,7 @@ components:
             data: { $ref: '#/components/schemas/MarkInferenceResult' }
     ModelInferenceRequest:
       type: object
+      additionalProperties: false
       required: [mark, year, text]
       properties:
         mark: { type: string }
@@ -1151,6 +1177,7 @@ components:
         limit: { type: integer, minimum: 1, maximum: 20, default: 5 }
     ModelCandidate:
       type: object
+      additionalProperties: true
       required: [model, name, confidence, score]
       properties:
         model: { type: string }
@@ -1159,6 +1186,7 @@ components:
         score: { type: number, format: double, minimum: 0, maximum: 100 }
     ModelInferenceResult:
       type: object
+      additionalProperties: true
       required: [catalogVersion, outcome, totalCandidates, topMargin, models]
       properties:
         catalogVersion: { type: string }
