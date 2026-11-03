@@ -1068,6 +1068,188 @@ test("catalog.inferTrim: mapeo de errores HTTP 400 y 404 year_not_found", async 
   );
 });
 
+test("orders.get: deserializa comparables cuando están presentes en result.data", async () => {
+  const transport = memoryTransport([
+    json(200, {
+      orderId: "ordb2b_01j7x000000000000000000002",
+      reportType: "general-price",
+      status: "COMPLETED",
+      result: {
+        schemaVersion: "report-result-v2",
+        data: {
+          localization: {
+            currency: "CLP",
+            timeZone: "America/Santiago",
+            locale: "es-CL",
+          },
+          vehicle: {
+            mark: "Peugeot",
+            model: "208",
+            year: 2023,
+            version: "1.2 PureTech",
+            versionResolution: "EXACT",
+            versionApplied: true,
+          },
+          sections: {
+            comparables: {
+              schema: "comparables-v1",
+              status: "AVAILABLE",
+              data: {
+                items: [
+                  {
+                    portal: "chileautos",
+                    publicationId: "pub-1",
+                    url: "https://example.com/auto/1",
+                    price: 9990000,
+                    year: 2023,
+                    odometer: 52000,
+                    version: "1.2 PureTech",
+                    canonicalVersionKey: "1.2 PureTech",
+                    region: "13",
+                    sellerType: "dealer",
+                    firstSeenAt: "2026-10-12T10:00:00Z",
+                    lastSeenAt: "2026-10-20T10:00:00Z",
+                    distant: false,
+                    diff: {
+                      yearDelta: 0,
+                      odometerDelta: -2000,
+                      sameVersion: true,
+                      sameRegion: true,
+                    },
+                  },
+                  {
+                    portal: "chileautos",
+                    publicationId: "pub-2",
+                    url: "https://example.com/auto/2",
+                    price: 10500000,
+                    year: 2022,
+                    odometer: 65000,
+                    version: "1.2 PureTech",
+                    canonicalVersionKey: "1.2 PureTech",
+                    region: "05",
+                    sellerType: "private",
+                    firstSeenAt: "2026-10-15T10:00:00Z",
+                    lastSeenAt: "2026-10-25T10:00:00Z",
+                    distant: true,
+                    diff: {
+                      yearDelta: -1,
+                      odometerDelta: 11000,
+                      sameVersion: true,
+                      sameRegion: false,
+                    },
+                  },
+                ],
+                model: {
+                  algorithmVersion: "2026.1",
+                  logicalDay: "2026-11-01",
+                  scope: "regional",
+                },
+                selection: {
+                  candidates: 10,
+                  withinTolerance: 5,
+                  maxResults: 10,
+                  kMin: 2,
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+  const client = clientWith(transport);
+  const res = await client.orders.get("ordb2b_01j7x000000000000000000002");
+  assert.strictEqual(res.status, "COMPLETED");
+  const data = res.result && res.result.data;
+  assert.ok(data && typeof data === "object");
+  const comparables = data.sections && data.sections.comparables;
+  assert.ok(comparables);
+  assert.strictEqual(comparables.status, "AVAILABLE");
+  assert.strictEqual(comparables.schema, "comparables-v1");
+  assert.strictEqual(comparables.data.items.length, 2);
+  const first = comparables.data.items[0];
+  assert.strictEqual(first.price, 9990000);
+  assert.strictEqual(first.odometer, 52000);
+  assert.strictEqual(first.region, "13");
+  assert.strictEqual(first.distant, false);
+  const second = comparables.data.items[1];
+  assert.strictEqual(second.price, 10500000);
+  assert.strictEqual(second.odometer, 65000);
+  assert.strictEqual(second.region, "05");
+  assert.strictEqual(second.distant, true);
+});
+
+test("dist: archivos .d.ts de la API pública contienen documentación JSDoc", () => {
+  const distDir = path.resolve(__dirname, "../dist");
+  const publicDtsFiles = [
+    "index.d.ts",
+    "resources/orders.d.ts",
+    "resources/catalog.d.ts",
+    "resources/types.d.ts",
+    "resources/sections/price.d.ts",
+    "resources/sections/comparables.d.ts",
+    "resources/sections/usage.d.ts",
+    "resources/sections/listing-analysis.d.ts",
+    "resources/sections/price-history.d.ts",
+  ];
+  for (const relPath of publicDtsFiles) {
+    const fullPath = path.join(distDir, relPath);
+    assert.strictEqual(
+      fs.existsSync(fullPath),
+      true,
+      `El archivo ${relPath} debe existir en dist`,
+    );
+    const content = fs.readFileSync(fullPath, "utf8");
+    assert.strictEqual(
+      content.indexOf("/**") !== -1,
+      true,
+      `El archivo ${relPath} debe contener comentarios JSDoc (/**)`,
+    );
+  }
+});
+
+test("readme: ejemplos de código son válidos contra fixtures.json", () => {
+  const readmePath = path.resolve(__dirname, "../README.md");
+  const readme = fs.readFileSync(readmePath, "utf8");
+
+  const codeBlocks = (readme.match(/```(?:ts|js)[\s\S]*?```/g) || []).join(
+    "\n",
+  );
+  assert.strictEqual(
+    codeBlocks.indexOf("general-price-result-v1"),
+    -1,
+    "Los ejemplos de código del README no deben referenciar general-price-result-v1",
+  );
+  assert.strictEqual(
+    readme.indexOf("report-result-v2") !== -1,
+    true,
+    "README debe mencionar schemaVersion report-result-v2",
+  );
+  assert.strictEqual(
+    readme.indexOf("sections.price") !== -1,
+    true,
+    "README debe mostrar acceso a sections.price",
+  );
+
+  const fixturePath = path.join(__dirname, "conformance", "fixtures.json");
+  const fixtures = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+  let waiterCase = null;
+  for (const item of fixtures.cases) {
+    if (item.id === "waiter-202-then-200") {
+      waiterCase = item;
+      break;
+    }
+  }
+  assert.ok(waiterCase, "Fixture waiter-202-then-200 debe existir");
+  const result = waiterCase.expected.value.result;
+  assert.strictEqual(result.schemaVersion, "report-result-v2");
+  assert.ok(result.data.sections.price.data.qualityScore > 0);
+  assert.ok(result.data.sections.price.data.purchase.minPrice > 0);
+  assert.ok(result.data.sections.price.data.grossMarginEstimate.avgGrossMargin > 0);
+  assert.ok(result.data.sections.comparables.data.items.length > 0);
+  assert.ok(result.data.sections.usage.data.series.length > 0);
+});
+
 (async function main() {
   let failures = 0;
   let skipped = 0;

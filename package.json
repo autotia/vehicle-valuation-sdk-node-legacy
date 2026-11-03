@@ -1,6 +1,6 @@
 {
   "name": "@autotia/vehicle-valuation-sdk-legacy",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "SDK CommonJS para la API de tasación vehicular de Autotia",
   "repository": {
     "type": "git",
@@ -30,7 +30,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node test/run.js",
+    "test:types": "tsc -p test/types/tsconfig.json",
+    "test": "npm run build && npm run test:types && node test/run.js",
     "test:node11": "npm run build && docker run --rm -v \"$PWD:/work\" -w /work node:11.15.0-alpine node test/run.js",
     "lint": "biome check src test scripts",
     "check:package": "publint && attw --pack . --profile strict",

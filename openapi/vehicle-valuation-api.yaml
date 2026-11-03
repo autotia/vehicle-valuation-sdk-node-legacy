@@ -704,7 +704,7 @@ components:
           type: string
           description: Identificador de la venta asociada con prefijo `sal_` (se omite si aún no está asociada).
         result:
-          $ref: '#/components/schemas/OrderResult'
+          $ref: '#/components/schemas/ReportResult'
         failure:
           $ref: '#/components/schemas/Failure'
         resolution:
@@ -717,35 +717,629 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/OrderStatus'
-    OrderResult:
+    ReportResult:
       type: object
       additionalProperties: true
       required: [schemaVersion, data]
       properties:
         schemaVersion:
           type: string
-          enum: [general-price-result-v1]
+          example: report-result-v2
         data:
           $ref: '#/components/schemas/OrderResultData'
+    OrderResult:
+      $ref: '#/components/schemas/ReportResult'
+    Currency:
+      type: object
+      additionalProperties: true
+      required: [code, name, symbol, symbolPosition, decimals, decimalSeparator, groupSeparator]
+      properties:
+        code:
+          type: string
+          example: CLP
+        name:
+          type: string
+          example: Peso chileno
+        symbol:
+          type: string
+          example: "$"
+        symbolPosition:
+          type: string
+          example: BEFORE
+        decimals:
+          type: integer
+          example: 0
+        decimalSeparator:
+          type: string
+          example: ","
+        groupSeparator:
+          type: string
+          example: "."
+    Localization:
+      type: object
+      additionalProperties: true
+      required: [locale, timeZone, dateFormat, distanceUnit, currency]
+      properties:
+        locale:
+          type: string
+          example: es-CL
+        timeZone:
+          type: string
+          example: America/Santiago
+        dateFormat:
+          type: string
+          example: dd-MM-yyyy
+        distanceUnit:
+          type: string
+          example: km
+        currency:
+          $ref: '#/components/schemas/Currency'
     OrderResultData:
       type: object
       additionalProperties: true
-      required: [vehicle, marketContext, purchase, sale, grossMarginEstimate, freshness, methodology]
+      required: [schemaVersion, localization, vehicle, resolution, sections]
       properties:
+        schemaVersion:
+          type: string
+          example: report-result-v2
+        localization:
+          $ref: '#/components/schemas/Localization'
         vehicle:
           $ref: '#/components/schemas/ResultVehicle'
+        resolution:
+          $ref: '#/components/schemas/Resolution'
+        sections:
+          $ref: '#/components/schemas/ReportSections'
+    ReportSection:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          type: object
+          additionalProperties: true
+    ReportSections:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/ReportSection'
+      properties:
+        price:
+          $ref: '#/components/schemas/PriceSectionV2'
+        comparables:
+          $ref: '#/components/schemas/ComparablesSectionV1'
+        usage:
+          $ref: '#/components/schemas/UsageSectionV1'
+        listingAnalysis:
+          $ref: '#/components/schemas/ListingAnalysisSectionV2'
+        priceHistory:
+          $ref: '#/components/schemas/PriceHistorySectionV1'
+    PriceSectionV2:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+          enum: [price-v2]
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          $ref: '#/components/schemas/PriceSectionDataV2'
+    PriceSectionDataV2:
+      type: object
+      additionalProperties: true
+      required: [qualityScore, qualityInputs, marketContext, purchase, sale, grossMarginEstimate, priceDistribution, freshness, methodology]
+      properties:
+        qualityScore:
+          type: integer
+        qualityInputs:
+          $ref: '#/components/schemas/PriceQualityInputsV2'
         marketContext:
-          $ref: '#/components/schemas/MarketContext'
+          $ref: '#/components/schemas/PriceMarketContextV2'
         purchase:
-          $ref: '#/components/schemas/PriceSide'
+          $ref: '#/components/schemas/PriceRangeV2'
         sale:
-          $ref: '#/components/schemas/PriceSide'
+          $ref: '#/components/schemas/PriceRangeV2'
         grossMarginEstimate:
-          $ref: '#/components/schemas/GrossMarginEstimate'
+          $ref: '#/components/schemas/GrossMarginEstimateV2'
+        priceDistribution:
+          $ref: '#/components/schemas/PriceDistributionV2'
         freshness:
-          $ref: '#/components/schemas/Freshness'
+          $ref: '#/components/schemas/PriceFreshnessV2'
         methodology:
-          $ref: '#/components/schemas/Methodology'
+          $ref: '#/components/schemas/PriceMethodologyV2'
+        sample:
+          $ref: '#/components/schemas/PriceSampleV2'
+    PriceQualityInputsV2:
+      type: object
+      additionalProperties: true
+      required: [publicationCount, support, effectiveWeight, lowConfidence, converged, crossingsCorrected]
+      properties:
+        publicationCount: { type: integer }
+        support: { type: number, format: double }
+        effectiveWeight: { type: number, format: double }
+        lowConfidence: { type: boolean }
+        converged: { type: boolean }
+        crossingsCorrected: { type: integer }
+    PriceMarketContextV2:
+      type: object
+      additionalProperties: true
+      required: [isNationalReference, odometer]
+      properties:
+        requestedRegion: { type: string, nullable: true }
+        appliedRegion: { type: string, nullable: true }
+        isNationalReference: { type: boolean }
+        odometer: { type: integer }
+    PriceRangeV2:
+      type: object
+      additionalProperties: true
+      required: [minPrice, maxPrice]
+      properties:
+        minPrice: { type: integer, format: int64 }
+        maxPrice: { type: integer, format: int64 }
+    GrossMarginEstimateV2:
+      type: object
+      additionalProperties: true
+      required: [disclaimer, purchaseRange, saleRange, minGrossMargin, minGrossMarginPercent, maxGrossMargin, maxGrossMarginPercent, avgGrossMargin, avgGrossMarginPercent]
+      properties:
+        disclaimer: { type: string }
+        purchaseRange: { $ref: '#/components/schemas/PriceRangeV2' }
+        saleRange: { $ref: '#/components/schemas/PriceRangeV2' }
+        minGrossMargin: { type: integer, format: int64 }
+        minGrossMarginPercent: { type: number, format: double }
+        maxGrossMargin: { type: integer, format: int64 }
+        maxGrossMarginPercent: { type: number, format: double }
+        avgGrossMargin: { type: integer, format: int64 }
+        avgGrossMarginPercent: { type: number, format: double }
+    PriceQuantileV2:
+      type: object
+      additionalProperties: true
+      required: [percentile, price]
+      properties:
+        percentile: { type: integer }
+        price: { type: integer, format: int64 }
+    PriceDistributionV2:
+      type: object
+      additionalProperties: true
+      required: [market, private, dealer]
+      properties:
+        market:
+          type: array
+          items: { $ref: '#/components/schemas/PriceQuantileV2' }
+        private:
+          type: array
+          items: { $ref: '#/components/schemas/PriceQuantileV2' }
+        dealer:
+          type: array
+          items: { $ref: '#/components/schemas/PriceQuantileV2' }
+    PriceFreshnessV2:
+      type: object
+      additionalProperties: true
+      required: [lastValidLogicalDay, ageDays, status]
+      properties:
+        lastValidLogicalDay: { type: string }
+        ageDays: { type: integer }
+        status: { type: string }
+    PriceMethodologyV2:
+      type: object
+      additionalProperties: true
+      required: [qualityVersion, smoothingVersion, algorithmVersion]
+      properties:
+        qualityVersion: { type: string }
+        smoothingVersion: { type: string }
+        algorithmVersion: { type: string }
+    SellerCountsV2:
+      type: object
+      additionalProperties: true
+      required: [private, dealer, unknown]
+      properties:
+        private: { type: integer }
+        dealer: { type: integer }
+        unknown: { type: integer }
+    ExactMatchSampleV2:
+      type: object
+      additionalProperties: true
+      required: [year, trimKey, publicationCount, sellerCounts]
+      properties:
+        year: { type: integer }
+        trimKey: { type: string }
+        publicationCount: { type: integer }
+        sellerCounts: { $ref: '#/components/schemas/SellerCountsV2' }
+    PriceSampleV2:
+      type: object
+      additionalProperties: true
+      required: [modelPublicationCount, modelSellerCounts]
+      properties:
+        modelPublicationCount: { type: integer }
+        modelSellerCounts: { $ref: '#/components/schemas/SellerCountsV2' }
+        exactMatch: { $ref: '#/components/schemas/ExactMatchSampleV2' }
+    ComparablesSectionV1:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+          enum: [comparables-v1]
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          $ref: '#/components/schemas/ComparablesSectionDataV1'
+    ComparablesSectionDataV1:
+      type: object
+      additionalProperties: true
+      required: [items, model, selection]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparableItemV1'
+        model:
+          $ref: '#/components/schemas/ComparableModelV1'
+        selection:
+          $ref: '#/components/schemas/ComparableSelectionV1'
+    ComparableItemV1:
+      type: object
+      additionalProperties: true
+      required: [portal, publicationId, url, price, year, odometer, version, region, sellerType, firstSeenAt, lastSeenAt, distant, diff]
+      properties:
+        portal: { type: string }
+        publicationId: { type: string }
+        url: { type: string }
+        price: { type: integer, format: int64 }
+        year: { type: integer }
+        odometer: { type: integer }
+        version: { type: string }
+        canonicalVersionKey: { type: string }
+        region: { type: string }
+        sellerType: { type: string, enum: [dealer, private] }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        distant: { type: boolean }
+        diff: { $ref: '#/components/schemas/ComparableDiffV1' }
+    ComparableDiffV1:
+      type: object
+      additionalProperties: true
+      required: [yearDelta, odometerDelta, sameVersion, sameRegion]
+      properties:
+        yearDelta: { type: integer }
+        odometerDelta: { type: integer }
+        sameVersion: { type: boolean }
+        sameRegion: { type: boolean }
+    ComparableModelV1:
+      type: object
+      additionalProperties: true
+      required: [algorithmVersion, logicalDay, scope]
+      properties:
+        algorithmVersion: { type: string }
+        logicalDay: { type: string }
+        scope: { type: string }
+    ComparableSelectionV1:
+      type: object
+      additionalProperties: true
+      required: [candidates, withinTolerance, maxResults, kMin]
+      properties:
+        candidates: { type: integer }
+        withinTolerance: { type: integer }
+        maxResults: { type: integer }
+        kMin: { type: integer }
+    UsageSectionV1:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+          enum: [usage-v1]
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          $ref: '#/components/schemas/UsageSectionDataV1'
+    UsageSectionDataV1:
+      type: object
+      additionalProperties: true
+      required: [markKey, modelKey, markCanon, modelCanon, vehicleAge, vehicleOdometer, series, vehicleAgeComparable, totalSampleSize]
+      properties:
+        markKey: { type: string }
+        modelKey: { type: string }
+        markCanon: { type: string }
+        modelCanon: { type: string }
+        vehicleAge: { type: integer }
+        vehicleOdometer: { type: integer }
+        observedOdometer: { type: integer }
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageAgePointV1'
+        modelLevelFallback:
+          $ref: '#/components/schemas/UsageModelFallbackV1'
+        source:
+          $ref: '#/components/schemas/UsageSourceV1'
+        vehicleAgeComparable: { type: boolean }
+        maxComparableAge: { type: integer }
+        totalSampleSize: { type: integer }
+    OdometerQuantileV1:
+      type: object
+      additionalProperties: true
+      required: [percentile, odometer]
+      properties:
+        percentile: { type: integer }
+        odometer: { type: integer }
+    UsageAgePointV1:
+      type: object
+      additionalProperties: true
+      required: [age, referenceYear, distribution, synthetic, sampleSize, sampleSizeRaw, discardedOutliers, lowerFence, upperFence]
+      properties:
+        age: { type: integer }
+        referenceYear: { type: integer }
+        distribution:
+          type: array
+          items: { $ref: '#/components/schemas/OdometerQuantileV1' }
+        synthetic: { type: boolean }
+        sampleSize: { type: integer }
+        sampleSizeRaw: { type: integer }
+        discardedOutliers: { type: integer }
+        lowerFence: { type: number }
+        upperFence: { type: number }
+    UsageModelFallbackV1:
+      type: object
+      additionalProperties: true
+      required: [sampleSize, distribution]
+      properties:
+        sampleSize: { type: integer }
+        distribution:
+          type: array
+          items: { $ref: '#/components/schemas/OdometerQuantileV1' }
+    UsageSourceV1:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, country, generatedAt]
+      properties:
+        schemaVersion: { type: string }
+        country: { type: string }
+        generatedAt: { type: string }
+    ListingAnalysisSectionV2:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+          enum: [listing-analysis-v2]
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          $ref: '#/components/schemas/ListingAnalysisSectionDataV2'
+    ListingAnalysisSectionDataV2:
+      type: object
+      additionalProperties: true
+      required: [listingFacts, score, executiveSummary, sectionSummaries, findings, elementVerdicts, contextualQuestions, media]
+      properties:
+        listingFacts:
+          $ref: '#/components/schemas/ListingFactsV2'
+        score:
+          $ref: '#/components/schemas/ListingScoreV2'
+        executiveSummary:
+          type: array
+          items: { type: string }
+        sectionSummaries:
+          type: array
+          items: { $ref: '#/components/schemas/ListingSummaryV2' }
+        findings:
+          type: array
+          items: { $ref: '#/components/schemas/ListingFindingV2' }
+        elementVerdicts:
+          type: array
+          items: { $ref: '#/components/schemas/ListingVerdictV2' }
+        odometerReading:
+          $ref: '#/components/schemas/OdometerReadingV2'
+        vehicleAttributes:
+          $ref: '#/components/schemas/VehicleAttributesV2'
+        mediaSummary:
+          $ref: '#/components/schemas/MediaSummaryV2'
+        negotiationBand:
+          $ref: '#/components/schemas/NegotiationBandV2'
+        contextualQuestions:
+          type: array
+          items: { $ref: '#/components/schemas/ContextualQuestionV2' }
+        media:
+          type: array
+          items: { $ref: '#/components/schemas/ListingMediaV2' }
+    ListingFactsV2:
+      type: object
+      additionalProperties: true
+      required: [publicationId, portal, detailUrl, title, publishedPrice, publishedOdometer, sellerType, location, description, scrapedAt]
+      properties:
+        publicationId: { type: string }
+        portal: { type: string }
+        detailUrl: { type: string }
+        title: { type: string }
+        publishedPrice: { type: integer, format: int64 }
+        publishedOdometer: { type: integer }
+        sellerType: { type: string }
+        sellerName: { type: string }
+        location: { type: string }
+        description: { type: string }
+        scrapedAt: { type: string, format: date-time }
+    ListingScoreItemV2:
+      type: object
+      additionalProperties: true
+      required: [element, class, verdict, points, counted]
+      properties:
+        element: { type: string }
+        class: { type: string }
+        verdict: { type: string }
+        points: { type: integer }
+        counted: { type: boolean }
+    ListingScoreV2:
+      type: object
+      additionalProperties: true
+      required: [value, label, rawScore, maxPossible, items]
+      properties:
+        value: { type: integer }
+        label: { type: string }
+        rawScore: { type: integer }
+        maxPossible: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ListingScoreItemV2' }
+    ListingSummaryV2:
+      type: object
+      additionalProperties: true
+      required: [section, text]
+      properties:
+        section: { type: string }
+        text: { type: string }
+    CostBoundsV2:
+      type: object
+      additionalProperties: true
+      properties:
+        minAmount: { type: integer, format: int64 }
+        maxAmount: { type: integer, format: int64 }
+    ListingFindingV2:
+      type: object
+      additionalProperties: true
+      required: [text, severity, origin]
+      properties:
+        text: { type: string }
+        severity: { type: string }
+        origin: { type: string }
+        resourceKey: { type: string }
+        repairCostEstimate: { $ref: '#/components/schemas/CostBoundsV2' }
+    ListingVerdictV2:
+      type: object
+      additionalProperties: true
+      required: [element, verdict, rationale, resourceKeys]
+      properties:
+        element: { type: string }
+        verdict: { type: string }
+        rationale: { type: string }
+        resourceKeys:
+          type: array
+          items: { type: string }
+        points: { type: integer }
+    OdometerReadingV2:
+      type: object
+      additionalProperties: true
+      required: [listed, published, matches, threshold, listedDiffers, listedFallback]
+      properties:
+        listed: { type: integer }
+        published: { type: integer }
+        observed: { type: integer }
+        observedResourceKey: { type: string }
+        matches: { type: boolean }
+        threshold: { type: integer }
+        listedDiffers: { type: boolean }
+        listedFallback: { type: boolean }
+    VehicleAttributesV2:
+      type: object
+      additionalProperties: true
+      properties:
+        vin: { type: string }
+        bodyColor: { type: string }
+        licensePlate: { type: string }
+    MediaSummaryV2:
+      type: object
+      additionalProperties: true
+      required: [photoCount, videoCount, summaryText]
+      properties:
+        photoCount: { type: integer }
+        videoCount: { type: integer }
+        summaryText: { type: string }
+    NegotiationBandV2:
+      type: object
+      additionalProperties: true
+      required: [entryOffer, maxRecommended, published, saving, medianReferencePrice, arguments, available]
+      properties:
+        entryOffer: { type: integer, format: int64 }
+        maxRecommended: { type: integer, format: int64 }
+        published: { type: integer, format: int64 }
+        saving: { type: integer, format: int64 }
+        medianReferencePrice: { type: integer, format: int64 }
+        arguments:
+          type: array
+          items: { type: string }
+        available: { type: boolean }
+    ContextualQuestionV2:
+      type: object
+      additionalProperties: true
+      required: [key, text]
+      properties:
+        key: { type: string }
+        text: { type: string }
+    ListingMediaV2:
+      type: object
+      additionalProperties: true
+      required: [resourceKey, mediaType, url, section]
+      properties:
+        resourceKey: { type: string }
+        mediaType: { type: string }
+        url: { type: string }
+        section: { type: string }
+    PriceHistorySectionV1:
+      type: object
+      additionalProperties: true
+      required: [schema, status]
+      properties:
+        schema:
+          type: string
+          enum: [price-history-v1]
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE, FAILED]
+        data:
+          $ref: '#/components/schemas/PriceHistorySectionDataV1'
+    PriceHistorySectionDataV1:
+      type: object
+      additionalProperties: true
+      required: [windowDays, percentiles, market, private, dealer]
+      properties:
+        windowDays: { type: integer }
+        percentiles:
+          type: array
+          items: { type: integer }
+        market: { $ref: '#/components/schemas/HistoryPopulationV1' }
+        private: { $ref: '#/components/schemas/HistoryPopulationV1' }
+        dealer: { $ref: '#/components/schemas/HistoryPopulationV1' }
+    HistoryPointV1:
+      type: object
+      additionalProperties: true
+      required: [date, prices, lowConfidence]
+      properties:
+        date: { type: string }
+        prices:
+          type: array
+          items: { type: integer, format: int64 }
+        lowConfidence: { type: boolean }
+    RegionHistoryV1:
+      type: object
+      additionalProperties: true
+      required: [region, points]
+      properties:
+        region: { type: string }
+        points:
+          type: array
+          items: { $ref: '#/components/schemas/HistoryPointV1' }
+    HistoryPopulationV1:
+      type: object
+      additionalProperties: true
+      required: [national, regions]
+      properties:
+        national:
+          type: array
+          items: { $ref: '#/components/schemas/HistoryPointV1' }
+        regions:
+          type: array
+          items: { $ref: '#/components/schemas/RegionHistoryV1' }
     ResultVehicle:
       type: object
       additionalProperties: true
@@ -766,99 +1360,6 @@ components:
           type: string
         versionApplied:
           type: boolean
-    MarketContext:
-      type: object
-      additionalProperties: true
-      required: [region, purchaseSellerType, saleSellerType, odometerKm]
-      properties:
-        region:
-          type: string
-        purchaseSellerType:
-          type: string
-        saleSellerType:
-          type: string
-        odometerKm:
-          type: integer
-    PriceSide:
-      type: object
-      additionalProperties: true
-      required: [sellerType, qualityScore, options]
-      properties:
-        sellerType:
-          type: string
-        qualityScore:
-          type: integer
-        options:
-          type: array
-          items:
-            $ref: '#/components/schemas/PriceOption'
-    PriceOption:
-      type: object
-      additionalProperties: true
-      required: [percentile, priceCLP]
-      properties:
-        percentile:
-          type: integer
-        priceCLP:
-          type: integer
-          format: int64
-    GrossMarginEstimate:
-      type: object
-      additionalProperties: true
-      required: [qualityScore, disclaimer, maxMargin, minMargin]
-      properties:
-        qualityScore:
-          type: integer
-        disclaimer:
-          type: string
-        maxMargin:
-          $ref: '#/components/schemas/MarginRange'
-        minMargin:
-          $ref: '#/components/schemas/MarginRange'
-    MarginRange:
-      type: object
-      additionalProperties: true
-      required: [purchasePercentile, salePercentile, purchasePriceCLP, salePriceCLP, marginCLP, marginPercent]
-      properties:
-        purchasePercentile:
-          type: integer
-        salePercentile:
-          type: integer
-        purchasePriceCLP:
-          type: integer
-          format: int64
-        salePriceCLP:
-          type: integer
-          format: int64
-        marginCLP:
-          type: integer
-          format: int64
-        marginPercent:
-          type: number
-          format: double
-    Freshness:
-      type: object
-      additionalProperties: true
-      required: [lastValidLogicalDay, ageDays, status]
-      properties:
-        lastValidLogicalDay:
-          type: string
-          description: Fecha lógica `YYYY-MM-DD`.
-        ageDays:
-          type: integer
-        status:
-          type: string
-    Methodology:
-      type: object
-      additionalProperties: true
-      required: [qualityVersion, smoothingVersion, algorithmVersion]
-      properties:
-        qualityVersion:
-          type: string
-        smoothingVersion:
-          type: string
-        algorithmVersion:
-          type: string
     CatalogRef:
       type: object
       additionalProperties: true
@@ -1099,12 +1600,18 @@ components:
         fields:
           type: object
           additionalProperties: true
-          required: [model, version, region, odometerKm]
+          required: [model, version, region]
           properties:
             model: { $ref: '#/components/schemas/ResolvedStringField' }
             version: { $ref: '#/components/schemas/ResolvedStringField' }
             region: { $ref: '#/components/schemas/ResolvedStringField' }
-            odometerKm: { $ref: '#/components/schemas/ResolvedNumberField' }
+            odometer:
+              $ref: '#/components/schemas/ResolvedNumberField'
+              deprecated: true
+              description: Odómetro resuelto en kilómetros (nombre legacy; preferir odometerKm).
+            odometerKm:
+              $ref: '#/components/schemas/ResolvedNumberField'
+              description: Kilometraje resuelto del vehículo en kilómetros.
         selected:
           $ref: '#/components/schemas/ResolutionCandidate'
         alternatives:

@@ -15,6 +15,9 @@ import type {
   OrderStatus,
 } from "./types";
 
+/**
+ * Recurso para la creación, consulta y sondeo de pedidos de tasación vehicular.
+ */
 export class OrdersResource {
   private readonly config: RequestConfig;
   private readonly catalog: CatalogResource;
@@ -28,6 +31,35 @@ export class OrdersResource {
     };
   }
 
+  /**
+   * Solicita la creación asíncrona de un pedido de tasación vehicular entregando identificación exacta o por búsqueda.
+   *
+   * @param input Parámetros del pedido incluyendo tipo de informe, marca, año y modelo/versión o búsqueda libre.
+   * @param options Opciones de llamada HTTP (idempotencia, señal de cancelación, timeout).
+   * @returns Promesa con la respuesta de aceptación (HTTP 202 con pollAfterMs) o el estado del pedido.
+   * @throws {BadRequestError} Si los parámetros de solicitud son inválidos (HTTP 400).
+   * @throws {AuthenticationError} Si las credenciales son inválidas o el token expiró (HTTP 401).
+   * @throws {PermissionDeniedError} Si el cliente no tiene autorización o fue suspendido (HTTP 403).
+   * @throws {ConflictError} Si existe un conflicto con la clave de idempotencia enviada (HTTP 409).
+   * @throws {QuotaExceededError} Si se agotó la cuota mensual o el saldo contratado (HTTP 429).
+   * @throws {RateLimitError} Si se excedió la tasa máxima de llamadas por segundo (HTTP 429).
+   * @throws {InternalServerError} Si ocurre un error temporal en el servicio upstream (HTTP 500, 502, 503, 504).
+   * @throws {AutotiaConnectionError} Si se produce una falla de red o conexión al servidor.
+   *
+   * @example
+   * ```js
+   * const acceptance = await client.orders.create({
+   *   reportType: "general-price",
+   *   mark: "Toyota",
+   *   model: "Yaris",
+   *   year: 2020,
+   *   version: "1.5 GL",
+   *   odometerKm: 45000,
+   *   region: "CL-RM",
+   * });
+   * console.log(`Pedido creado: ${acceptance.orderId}`);
+   * ```
+   */
   public async create(
     input: OrderRequest,
     options: CallOptions = {},
@@ -48,6 +80,38 @@ export class OrdersResource {
     return response;
   }
 
+  /**
+   * Infiere la versión de catálogo a partir de un texto libre y solicita inmediatamente la tasación vehicular.
+   *
+   * @param input Datos del vehículo y texto libre descriptivo de la versión.
+   * @param options Opciones de llamada y umbral mínimo de preferencia (minConfidence).
+   * @returns Promesa con el resultado de la inferencia, la versión seleccionada y el pedido creado.
+   * @throws {TrimInferenceError} Si el texto no aporta evidencia suficiente, no coincide con el catálogo o no alcanza minConfidence.
+   * @throws {BadRequestError} Si los parámetros de solicitud son inválidos (HTTP 400).
+   * @throws {AuthenticationError} Si las credenciales son inválidas o el token expiró (HTTP 401).
+   * @throws {PermissionDeniedError} Si el cliente no tiene autorización (HTTP 403).
+   * @throws {QuotaExceededError} Si se agotó la cuota comercial contratada (HTTP 429).
+   * @throws {RateLimitError} Si se excedió la tasa de peticiones concurrentes (HTTP 429).
+   * @throws {InternalServerError} Si el servicio de inferencia o pedidos falla temporalmente.
+   * @throws {AutotiaConnectionError} Si ocurre una falla de red.
+   *
+   * @example
+   * ```js
+   * const { order, selectedVersion, inference } = await client.orders.createFromTrimText(
+   *   {
+   *     reportType: "general-price",
+   *     mark: "Peugeot",
+   *     model: "208",
+   *     year: 2021,
+   *     trimText: "1.2 PureTech Allure 5p",
+   *     odometerKm: 38000,
+   *     region: "CL-RM",
+   *   },
+   *   { minConfidence: 70 },
+   * );
+   * console.log(`Versión elegida: ${selectedVersion}`);
+   * ```
+   */
   public async createFromTrimText(
     input: OrderFromTrimTextRequest,
     options: OrderFromTrimTextOptions = {},
@@ -138,6 +202,28 @@ export class OrdersResource {
     };
   }
 
+  /**
+   * Consulta el estado de procesamiento de un pedido de tasación vehicular existente.
+   *
+   * @param orderId Identificador único del pedido en formato 'ordb2b_…'.
+   * @param options Opciones de llamada HTTP (señal de cancelación, timeout).
+   * @returns Promesa con el estado del pedido, incluyendo el resultado si ya finalizó (COMPLETED).
+   * @throws {BadRequestError} Si el formato del identificador de pedido es inválido (HTTP 400).
+   * @throws {AuthenticationError} Si el token de acceso es inválido o ha expirado (HTTP 401).
+   * @throws {PermissionDeniedError} Si el pedido no pertenece a la cuenta autenticada (HTTP 403).
+   * @throws {NotFoundError} Si no se encuentra el pedido especificado (HTTP 404).
+   * @throws {RateLimitError} Si se excedió el límite de peticiones por segundo (HTTP 429).
+   * @throws {InternalServerError} Si el servicio no responde temporalmente (HTTP 500, 503, 504).
+   * @throws {AutotiaConnectionError} Si ocurre un error de red.
+   *
+   * @example
+   * ```js
+   * const status = await client.orders.get("ordb2b_01j7x000000000000000000000");
+   * if (status.status === "COMPLETED" && status.result) {
+   *   console.log("Tasación lista:", status.result.data);
+   * }
+   * ```
+   */
   public async get(
     orderId: string,
     options: CallOptions = {},
@@ -154,6 +240,31 @@ export class OrdersResource {
     return status;
   }
 
+  /**
+   * Realiza polling periódico sobre un pedido hasta que alcance el estado terminal COMPLETED o FAILED, o venza el plazo.
+   *
+   * @param orderId Identificador único del pedido en formato 'ordb2b_…'.
+   * @param options Opciones de polling (timeoutMs, pollAfterMs, signal).
+   * @returns Promesa con el estado completado del pedido que contiene el resultado (result).
+   * @throws {OrderFailedError} Si la tasación finaliza con estado FAILED.
+   * @throws {WaiterTimeoutError} Si se supera el tiempo máximo de espera o la señal es cancelada.
+   * @throws {BadRequestError} Si el identificador del pedido es inválido (HTTP 400).
+   * @throws {AuthenticationError} Si la autenticación falla durante el sondeo (HTTP 401).
+   * @throws {PermissionDeniedError} Si el pedido no pertenece al cliente (HTTP 403).
+   * @throws {NotFoundError} Si el pedido no existe en el sistema (HTTP 404).
+   * @throws {QuotaExceededError} Si se agota la cuota durante las consultas (HTTP 429).
+   * @throws {RateLimitError} Si se excede la tasa de consultas por segundo (HTTP 429).
+   * @throws {InternalServerError} Si el servicio falla de forma sostenida (HTTP 500, 503).
+   * @throws {AutotiaConnectionError} Si se pierde la conexión de red durante el polling.
+   *
+   * @example
+   * ```js
+   * const order = await client.orders.waitUntilComplete("ordb2b_01j7x000000000000000000000", {
+   *   timeoutMs: 60000,
+   * });
+   * console.log("Resultado completado:", order.result && order.result.data);
+   * ```
+   */
   public async waitUntilComplete(
     orderId: string,
     options: CallOptions = {},
