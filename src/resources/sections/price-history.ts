@@ -14,7 +14,13 @@ export type HistoryPoint = {
  * Puntos de serie temporal de precios correspondientes a una región específica.
  */
 export type RegionHistory = {
-  /** Código de la región geográfica analizada. */
+  /**
+   * Tipo de unidad geográfica de la serie: 'region' (región administrativa) o 'zone' (zona geográfica agrupada).
+   * El SDK entrega el valor tal como llega de la API; si una respuesta no lo incluye, el campo queda ausente
+   * (`undefined` en tiempo de ejecución) y no se completa con un valor por defecto.
+   */
+  kind: "region" | "zone" | string;
+  /** Código de la región o zona geográfica analizada. */
   region: string;
   /** Serie ordenada de puntos diarios históricos para la región. */
   points: HistoryPoint[];

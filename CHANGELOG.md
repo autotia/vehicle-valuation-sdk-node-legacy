@@ -8,7 +8,8 @@
   - `comparables` (`comparables-v1`): publicaciones comparables directas y segregación de comparables lejanos (`distant`), con precios en CLP, kilometraje, región y similitud.
   - `usage` (`usage-v1`): kilometraje mediano anual y curva de uso proyectada por año.
   - `listingAnalysis` (`listing-analysis-v2`): métricas de absorción de mercado, días en vitrina e índice de demanda.
-  - `priceHistory` (`price-history-v1`): tendencias y series históricas de precios.
+  - `priceHistory` (`price-history-v1`): tendencias y series históricas de precios. Cada serie de `regions` incluye `kind` (`region` o `zone`).
+- `comparables[].imageUrl` (opcional): URL de la imagen de la publicación comparable.
 - Compatibilidad hacia adelante: firma de índice abierta en `ReportSections` (`[key: string]: ReportSection | undefined`) para soportar secciones futuras sin requerir actualización del SDK.
 - Ciclo de vida por sección con estados explícitos (`COMPLETED`, `RUNNING`, `FAILED`, `UNAVAILABLE`) y omisión de `data` cuando la sección no está completada.
 - Documentación JSDoc exhaustiva en todas las clases, métodos, interfaces y propiedades exportadas (`@param`, `@returns`, `@throws`, `@example`).

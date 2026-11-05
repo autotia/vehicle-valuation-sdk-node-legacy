@@ -808,6 +808,7 @@
                             "odometer": 48000,
                             "version": "1.5",
                             "canonicalVersionKey": "1.5",
+                            "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                             "region": "13",
                             "sellerType": "dealer",
                             "firstSeenAt": "2026-10-15T12:00:00Z",
@@ -1189,6 +1190,7 @@
                         "odometer": 48000,
                         "version": "1.5",
                         "canonicalVersionKey": "1.5",
+                        "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                         "region": "13",
                         "sellerType": "dealer",
                         "firstSeenAt": "2026-10-15T12:00:00Z",
@@ -1866,6 +1868,7 @@
                             "odometer": 48000,
                             "version": "1.5",
                             "canonicalVersionKey": "1.5",
+                            "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                             "region": "13",
                             "sellerType": "dealer",
                             "firstSeenAt": "2026-10-15T12:00:00Z",
@@ -2134,6 +2137,7 @@
                           ],
                           "regions": [
                             {
+                              "kind": "region",
                               "region": "13",
                               "points": [
                                 {
@@ -2508,6 +2512,7 @@
                         "odometer": 48000,
                         "version": "1.5",
                         "canonicalVersionKey": "1.5",
+                        "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                         "region": "13",
                         "sellerType": "dealer",
                         "firstSeenAt": "2026-10-15T12:00:00Z",
@@ -2776,6 +2781,7 @@
                       ],
                       "regions": [
                         {
+                          "kind": "region",
                           "region": "13",
                           "points": [
                             {
@@ -3161,6 +3167,7 @@
                             "odometer": 48000,
                             "version": "1.5",
                             "canonicalVersionKey": "1.5",
+                            "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                             "region": "13",
                             "sellerType": "dealer",
                             "firstSeenAt": "2026-10-15T12:00:00Z",
@@ -3550,6 +3557,7 @@
                         "odometer": 48000,
                         "version": "1.5",
                         "canonicalVersionKey": "1.5",
+                        "imageUrl": "https://example.com/img/pub-yaris-101.jpg",
                         "region": "13",
                         "sellerType": "dealer",
                         "firstSeenAt": "2026-10-15T12:00:00Z",

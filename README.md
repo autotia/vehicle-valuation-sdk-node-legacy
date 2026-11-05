@@ -673,7 +673,7 @@ interface ReportSection<S extends string, T> {
    - `sample` (opcional): Conteos de muestra observados por tipo de vendedor.
 
 2. **`comparables` (`comparables-v1`)** — *Presente en informes de tasación B2B (`general-price`)*:
-   - `items`: Lista de publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`).
+   - `items`: Lista de publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`). Opcionalmente incluye `imageUrl` (URL de la imagen de la publicación); se omite cuando la publicación no tiene imagen.
    - `model`: Algoritmo y día lógico de búsqueda de comparables.
    - `selection`: Métricas de candidatos evaluados y tolerancias.
 
@@ -697,7 +697,7 @@ interface ReportSection<S extends string, T> {
 5. **`priceHistory` (`price-history-v1`)** — *Disponible en informes con análisis histórico*:
    - `windowDays`: Ventana histórica evaluada (60 días).
    - `percentiles`: Percentiles incluidos en la serie.
-   - `market`, `private`, `dealer`: Series temporales históricas con puntos diarios `{ date, prices, lowConfidence }` a nivel nacional y regional.
+   - `market`, `private`, `dealer`: Series temporales históricas con puntos diarios `{ date, prices, lowConfidence }` a nivel nacional y regional. Cada serie de `regions` incluye `kind` (`region` para una región administrativa o `zone` para una zona geográfica agrupada), `region` (código) y `points`. El SDK entrega `kind` tal como llega: si una respuesta no lo incluye, queda ausente y debe tratarse como desconocido.
 
 ---
 

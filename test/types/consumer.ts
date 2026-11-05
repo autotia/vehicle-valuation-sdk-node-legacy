@@ -94,7 +94,15 @@ export async function testTypeScriptConsumer(
           const isDistant: boolean = item.distant;
           const odoDelta: number = item.diff.odometerDelta;
           const sameVersion: boolean = item.diff.sameVersion;
-          void [itemPrice, itemOdo, isDistant, odoDelta, sameVersion];
+          const itemImage: string | undefined = item.imageUrl;
+          void [
+            itemPrice,
+            itemOdo,
+            isDistant,
+            odoDelta,
+            sameVersion,
+            itemImage,
+          ];
 
           // @ts-expect-error Propiedad obsoleta v1 removida
           void item.priceCLP;
@@ -154,6 +162,13 @@ export async function testTypeScriptConsumer(
           void [date, prices];
         }
         void [windowDays, percentiles];
+
+        const regionSeries = histSection.data.market.regions[0];
+        if (regionSeries) {
+          const regionKind: "region" | "zone" | string = regionSeries.kind;
+          const regionCode: string = regionSeries.region;
+          void [regionKind, regionCode];
+        }
 
         // @ts-expect-error Propiedad inexistente en priceHistory
         void histSection.data.fakeProp;

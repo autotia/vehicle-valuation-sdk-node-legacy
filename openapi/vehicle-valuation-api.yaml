@@ -998,6 +998,7 @@ components:
         odometer: { type: integer }
         version: { type: string }
         canonicalVersionKey: { type: string }
+        imageUrl: { type: string, format: uri }
         region: { type: string }
         sellerType: { type: string, enum: [dealer, private] }
         firstSeenAt: { type: string, format: date-time }
@@ -1323,8 +1324,9 @@ components:
     RegionHistoryV1:
       type: object
       additionalProperties: true
-      required: [region, points]
+      required: [kind, region, points]
       properties:
+        kind: { type: string, enum: [region, zone] }
         region: { type: string }
         points:
           type: array

@@ -1091,6 +1091,24 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
             versionApplied: true,
           },
           sections: {
+            priceHistory: {
+              schema: "price-history-v1",
+              status: "AVAILABLE",
+              data: {
+                windowDays: 60,
+                percentiles: [25, 50, 75],
+                market: {
+                  national: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }],
+                  regions: [
+                    { kind: "region", region: "13", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
+                    { kind: "zone", region: "norte", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
+                    { region: "05", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
+                  ],
+                },
+                private: { national: [], regions: [] },
+                dealer: { national: [], regions: [] },
+              },
+            },
             comparables: {
               schema: "comparables-v1",
               status: "AVAILABLE",
@@ -1105,6 +1123,7 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
                     odometer: 52000,
                     version: "1.2 PureTech",
                     canonicalVersionKey: "1.2 PureTech",
+                    imageUrl: "https://example.com/img/1.jpg",
                     region: "13",
                     sellerType: "dealer",
                     firstSeenAt: "2026-10-12T10:00:00Z",
@@ -1177,6 +1196,18 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
   assert.strictEqual(second.odometer, 65000);
   assert.strictEqual(second.region, "05");
   assert.strictEqual(second.distant, true);
+  assert.strictEqual(first.imageUrl, "https://example.com/img/1.jpg");
+  assert.strictEqual(second.imageUrl, undefined);
+
+  const history = data.sections.priceHistory;
+  assert.ok(history);
+  const regions = history.data.market.regions;
+  assert.strictEqual(regions[0].kind, "region");
+  assert.strictEqual(regions[1].kind, "zone");
+  assert.strictEqual(regions[1].region, "norte");
+  // Sin `kind` en la respuesta, el SDK no lo completa.
+  assert.strictEqual(regions[2].kind, undefined);
+  assert.strictEqual(regions[2].region, "05");
 });
 
 test("dist: archivos .d.ts de la API pública contienen documentación JSDoc", () => {

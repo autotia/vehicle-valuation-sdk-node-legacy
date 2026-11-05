@@ -32,6 +32,8 @@ export type ComparableItem = {
   version: string;
   /** Clave canónica de versión en catálogo si fue resuelta. */
   canonicalVersionKey?: string | undefined;
+  /** URL de la imagen de la publicación. Opcional: se omite cuando la publicación no tiene imagen. */
+  imageUrl?: string | undefined;
   /** Región geográfica donde se ubica la publicación. */
   region: string;
   /** Tipo de vendedor de la publicación ('dealer' o 'private'). */
