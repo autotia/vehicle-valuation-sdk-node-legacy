@@ -1098,11 +1098,46 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
                 windowDays: 60,
                 percentiles: [25, 50, 75],
                 market: {
-                  national: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }],
+                  national: [
+                    {
+                      date: "2026-11-01",
+                      prices: [9000000, 10000000, 11000000],
+                      lowConfidence: false,
+                    },
+                  ],
                   regions: [
-                    { kind: "region", region: "13", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
-                    { kind: "zone", region: "norte", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
-                    { region: "05", points: [{ date: "2026-11-01", prices: [9000000, 10000000, 11000000], lowConfidence: false }] },
+                    {
+                      kind: "region",
+                      region: "13",
+                      points: [
+                        {
+                          date: "2026-11-01",
+                          prices: [9000000, 10000000, 11000000],
+                          lowConfidence: false,
+                        },
+                      ],
+                    },
+                    {
+                      kind: "zone",
+                      region: "norte",
+                      points: [
+                        {
+                          date: "2026-11-01",
+                          prices: [9000000, 10000000, 11000000],
+                          lowConfidence: false,
+                        },
+                      ],
+                    },
+                    {
+                      region: "05",
+                      points: [
+                        {
+                          date: "2026-11-01",
+                          prices: [9000000, 10000000, 11000000],
+                          lowConfidence: false,
+                        },
+                      ],
+                    },
                   ],
                 },
                 private: { national: [], regions: [] },
@@ -1276,7 +1311,9 @@ test("readme: ejemplos de código son válidos contra fixtures.json", () => {
   assert.strictEqual(result.schemaVersion, "report-result-v2");
   assert.ok(result.data.sections.price.data.qualityScore > 0);
   assert.ok(result.data.sections.price.data.purchase.minPrice > 0);
-  assert.ok(result.data.sections.price.data.grossMarginEstimate.avgGrossMargin > 0);
+  assert.ok(
+    result.data.sections.price.data.grossMarginEstimate.avgGrossMargin > 0,
+  );
   assert.ok(result.data.sections.comparables.data.items.length > 0);
   assert.ok(result.data.sections.usage.data.series.length > 0);
 });
