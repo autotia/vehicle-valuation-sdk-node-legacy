@@ -1156,10 +1156,12 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
                     price: 9990000,
                     year: 2023,
                     odometer: 52000,
-                    version: "1.2 PureTech",
+                    version: "",
+                    versionIdentified: false,
                     canonicalVersionKey: "1.2 PureTech",
                     imageUrl: "https://example.com/img/1.jpg",
-                    region: "13",
+                    region: "",
+                    regionIdentified: false,
                     sellerType: "dealer",
                     firstSeenAt: "2026-10-12T10:00:00Z",
                     lastSeenAt: "2026-10-20T10:00:00Z",
@@ -1201,7 +1203,7 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
                 selection: {
                   candidates: 10,
                   withinTolerance: 5,
-                  maxResults: 10,
+                  maxResults: 5,
                   kMin: 2,
                 },
               },
@@ -1224,13 +1226,18 @@ test("orders.get: deserializa comparables cuando están presentes en result.data
   const first = comparables.data.items[0];
   assert.strictEqual(first.price, 9990000);
   assert.strictEqual(first.odometer, 52000);
-  assert.strictEqual(first.region, "13");
+  assert.strictEqual(first.region, "");
+  assert.strictEqual(first.version, "");
+  assert.strictEqual(first.versionIdentified, false);
+  assert.strictEqual(first.regionIdentified, false);
   assert.strictEqual(first.distant, false);
   const second = comparables.data.items[1];
   assert.strictEqual(second.price, 10500000);
   assert.strictEqual(second.odometer, 65000);
   assert.strictEqual(second.region, "05");
   assert.strictEqual(second.distant, true);
+  assert.strictEqual(second.versionIdentified, undefined);
+  assert.strictEqual(second.regionIdentified, undefined);
   assert.strictEqual(first.imageUrl, "https://example.com/img/1.jpg");
   assert.strictEqual(second.imageUrl, undefined);
 

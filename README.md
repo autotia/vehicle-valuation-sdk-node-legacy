@@ -673,9 +673,20 @@ interface ReportSection<S extends string, T> {
    - `sample` (opcional): Conteos de muestra observados por tipo de vendedor.
 
 2. **`comparables` (`comparables-v1`)** — *Presente en informes de tasación B2B (`general-price`)*:
-   - `items`: Lista de publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`). Opcionalmente incluye `imageUrl` (URL de la imagen de la publicación); se omite cuando la publicación no tiene imagen.
+   - `items`: Lista de hasta 5 publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `version`, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`). `versionIdentified` y `regionIdentified` son opcionales en el tipo; en informes nuevos indican si se identificó el valor asociado. Si son `false`, el valor correspondiente es `""`. En informes históricos que no incluyen estos campos, use `version !== ""` o `region !== ""` para determinar si el dato está identificado. Opcionalmente incluye `imageUrl` (URL de la imagen de la publicación); se omite cuando la publicación no tiene imagen.
    - `model`: Algoritmo y día lógico de búsqueda de comparables.
    - `selection`: Métricas de candidatos evaluados y tolerancias.
+
+   Ejemplo de una publicación nueva sin versión ni región identificadas:
+
+   ```json
+   {
+     "version": "",
+     "versionIdentified": false,
+     "region": "",
+     "regionIdentified": false
+   }
+   ```
 
 3. **`usage` (`usage-v1`)** — *Presente en informes de tasación B2B (`general-price`)*:
    - `vehicleAge`: Edad del vehículo calculada en años.
