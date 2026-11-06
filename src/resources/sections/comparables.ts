@@ -30,12 +30,24 @@ export type ComparableItem = {
   odometer: number;
   /** Versión del vehículo informada en la publicación. */
   version: string;
+  /**
+   * Indica si se pudo identificar la versión de la publicación. En informes nuevos, cuando es `true`,
+   * `version` contiene una cadena no vacía; cuando es `false`, `version` es `""`. El campo se omite
+   * en informes históricos: si no está presente, determine si se identificó usando `version !== ""`.
+   */
+  versionIdentified?: boolean | undefined;
   /** Clave canónica de versión en catálogo si fue resuelta. */
   canonicalVersionKey?: string | undefined;
   /** URL de la imagen de la publicación. Opcional: se omite cuando la publicación no tiene imagen. */
   imageUrl?: string | undefined;
   /** Región geográfica donde se ubica la publicación. */
   region: string;
+  /**
+   * Indica si se pudo identificar la región de la publicación. En informes nuevos, cuando es `true`,
+   * `region` contiene una cadena no vacía; cuando es `false`, `region` es `""`. El campo se omite
+   * en informes históricos: si no está presente, determine si se identificó usando `region !== ""`.
+   */
+  regionIdentified?: boolean | undefined;
   /** Tipo de vendedor de la publicación ('dealer' o 'private'). */
   sellerType: "dealer" | "private" | string;
   /** Fecha y hora de primera captura de la publicación en formato ISO 8601. */
@@ -79,7 +91,7 @@ export type ComparableSelection = {
  * Incluida en informes de tasación B2B (general-price / PRICE_API).
  */
 export type ComparablesSectionData = {
-  /** Listado de publicaciones de vehículos comparables seleccionadas. */
+  /** Listado de publicaciones de vehículos comparables seleccionadas (máximo 5 por informe). */
   items: ComparableItem[];
   /** Metadatos del modelo algorítmico de selección de comparables. */
   model: ComparableModel;

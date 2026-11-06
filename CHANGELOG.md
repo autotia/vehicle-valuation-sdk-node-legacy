@@ -1,5 +1,10 @@
 # Registro de cambios
 
+## [3.1.0] - 2026-11-05
+
+- `comparables[].versionIdentified` y `comparables[].regionIdentified` (opcionales): indican si se identificaron la versión y la región; en informes históricos ausentes, se interpretan mediante las cadenas `version` y `region`.
+- La sección `comparables` incluye como máximo 5 publicaciones por informe.
+
 ## [3.0.0] - Unreleased
 
 - Migración al resultado modular `report-result-v2`: el resultado de tasación se estructura en secciones independientes bajo `order.result.data.sections`.

@@ -979,6 +979,7 @@ components:
       properties:
         items:
           type: array
+          maxItems: 5
           items:
             $ref: '#/components/schemas/ComparableItemV1'
         model:
@@ -997,9 +998,11 @@ components:
         year: { type: integer }
         odometer: { type: integer }
         version: { type: string }
+        versionIdentified: { type: boolean, description: 'Opcional en informes históricos. En informes nuevos, false indica que version es ""; si se omite, use version !== "" para inferirlo.' }
         canonicalVersionKey: { type: string }
         imageUrl: { type: string, format: uri }
         region: { type: string }
+        regionIdentified: { type: boolean, description: 'Opcional en informes históricos. En informes nuevos, false indica que region es ""; si se omite, use region !== "" para inferirlo.' }
         sellerType: { type: string, enum: [dealer, private] }
         firstSeenAt: { type: string, format: date-time }
         lastSeenAt: { type: string, format: date-time }
@@ -1029,7 +1032,7 @@ components:
       properties:
         candidates: { type: integer }
         withinTolerance: { type: integer }
-        maxResults: { type: integer }
+        maxResults: { type: integer, maximum: 5 }
         kMin: { type: integer }
     UsageSectionV1:
       type: object
