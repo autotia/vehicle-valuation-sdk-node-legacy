@@ -733,6 +733,42 @@ test("catalog.inferTrim: envía cuerpo JSON correcto y recibe resultado", async 
   assert.strictEqual(res.versions[0].confidence, 100);
 });
 
+test("catalog.inferTrim: deserializa versionConfidence y versionBasis cuando están presentes", async () => {
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1) {
+        return json(200, {
+          catalogVersion: "cat-v2",
+          outcome: "matched",
+          totalCandidates: 4,
+          topMargin: 0,
+          versionConfidence: "MEDIUM",
+          versionBasis: "LOWEST_PRICE",
+          versions: [
+            {
+              version: "1.2 PURETECH ACTIVE PACK 75 4X2 MT 5P",
+              confidence: 25,
+              score: 75,
+            },
+          ],
+        });
+      }
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const client = clientWith(transport);
+  const res = await client.catalog.inferTrim({
+    mark: "Peugeot",
+    model: "208",
+    year: 2024,
+    text: "208 PURETECH 4X2 1.2",
+  });
+
+  assert.strictEqual(res.versionConfidence, "MEDIUM");
+  assert.strictEqual(res.versionBasis, "LOWEST_PRICE");
+});
+
 test("catalog: resolveVehicle, inferMark e inferModel usan sus rutas y cuerpos", async () => {
   const requests = [];
   const transport = {

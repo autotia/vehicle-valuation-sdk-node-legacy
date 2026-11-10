@@ -233,6 +233,26 @@ export interface OrderStatus {
 /** Nivel de certeza de la homologación en catálogo ('EXACT' | 'HIGH' | 'LOW'). */
 export type ResolutionCertainty = "EXACT" | "HIGH" | "LOW" | string;
 
+/**
+ * Nivel de confianza en la identificación de la versión del vehículo ('HIGH' | 'MEDIUM' | 'LOW').
+ *
+ * - `HIGH`: Coincidencia inequívoca respaldada por evidencia textual o por atributos excluyentes (potencia, transmisión, puertas).
+ * - `MEDIUM`: Desempate entre múltiples candidatas seleccionando la de menor precio mediano de mercado cuando existe diferencia apreciable.
+ * - `LOW`: Versiones candidatas indistinguibles (precios similares con diferencia menor al 5 % o sin muestra suficiente de precios, seleccionando la versión base o más simple).
+ *
+ * Nota: El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial (en ese caso el riesgo es acotado porque las versiones candidatas comparten precios similares).
+ */
+export type VersionConfidence = "HIGH" | "MEDIUM" | "LOW" | string;
+
+/**
+ * Criterio o base aplicada para la selección de la versión del vehículo ('TEXT' | 'LOWEST_PRICE' | 'SIMPLEST').
+ *
+ * - `TEXT`: La versión se seleccionó por coincidencia textual o especificación directa.
+ * - `LOWEST_PRICE`: Desempate aplicado seleccionando la versión con menor precio mediano de mercado observado.
+ * - `SIMPLEST`: Respaldo determinista seleccionando la versión base o más simple del catálogo (menor potencia, transmisión manual, menor equipamiento).
+ */
+export type VersionBasis = "TEXT" | "LOWEST_PRICE" | "SIMPLEST" | string;
+
 /** Fuente u origen del valor asignado a un campo resuelto. */
 export type ResolutionFieldSource =
   | "EXACT"
@@ -298,6 +318,17 @@ export interface Resolution {
   certainty: ResolutionCertainty;
   /** Margen de ventaja del mejor candidato respecto al segundo en inferencia. */
   topMargin: number;
+  /**
+   * Nivel de confianza en la identificación de la versión ('HIGH', 'MEDIUM', 'LOW').
+   * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
+   * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
+   */
+  versionConfidence?: VersionConfidence | undefined;
+  /**
+   * Criterio o base aplicada para la selección de la versión ('TEXT', 'LOWEST_PRICE', 'SIMPLEST').
+   * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
+   */
+  versionBasis?: VersionBasis | undefined;
   /** Detalle campo a campo de los valores y fuentes aplicadas. */
   fields: ResolutionFields;
   /** Versión candidata seleccionada como coincidencia definitiva. */
@@ -449,6 +480,17 @@ export interface TrimInferenceResult {
   totalCandidates: number;
   /** Diferencia de puntaje entre el primer y segundo candidato. */
   topMargin: number;
+  /**
+   * Nivel de confianza en la identificación de la versión ('HIGH', 'MEDIUM', 'LOW').
+   * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
+   * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
+   */
+  versionConfidence?: VersionConfidence | undefined;
+  /**
+   * Criterio o base aplicada para la selección de la versión ('TEXT', 'LOWEST_PRICE', 'SIMPLEST').
+   * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
+   */
+  versionBasis?: VersionBasis | undefined;
   /** Versiones candidatas ordenadas por preferencia decreciente. */
   versions: InferredTrim[];
   [key: string]: unknown;
