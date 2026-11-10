@@ -3,7 +3,10 @@ import type {
   OrderStatus,
   PriceSectionData,
   ReportSection,
+  TrimInferenceResult,
   VehicleValuationClient,
+  VersionBasis,
+  VersionConfidence,
 } from "@autotia/vehicle-valuation-sdk-legacy";
 
 /**
@@ -30,6 +33,10 @@ export async function testTypeScriptConsumer(
       const mark: string = resultData.vehicle.mark;
       const versionApplied: boolean = resultData.vehicle.versionApplied;
       const certainty: string = resultData.resolution.certainty;
+      const versionConf: VersionConfidence | undefined =
+        resultData.resolution.versionConfidence;
+      const versionBasis: VersionBasis | undefined =
+        resultData.resolution.versionBasis;
       const odoResolved: number | undefined =
         resultData.resolution.fields.odometer?.value;
 
@@ -41,6 +48,8 @@ export async function testTypeScriptConsumer(
         mark,
         versionApplied,
         certainty,
+        versionConf,
+        versionBasis,
         odoResolved,
       ];
 
@@ -188,4 +197,15 @@ export async function testTypeScriptConsumer(
       void resultData.purchase;
     }
   }
+
+  const inference: TrimInferenceResult = await client.catalog.inferTrim({
+    mark: "Peugeot",
+    model: "208",
+    year: 2024,
+    text: "208 PURETECH 4X2 1.2",
+  });
+  const infConfidence: VersionConfidence | undefined =
+    inference.versionConfidence;
+  const infBasis: VersionBasis | undefined = inference.versionBasis;
+  void [infConfidence, infBasis];
 }

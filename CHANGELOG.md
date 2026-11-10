@@ -1,5 +1,12 @@
 # Registro de cambios
 
+## [3.2.0] - 2026-11-10
+
+- `versionConfidence` y `versionBasis` (opcionales): nuevos campos aditivos en la inferencia de versión (`TrimInferenceResult`) y en la resolución vehicular (`Resolution`).
+  - `versionConfidence`: nivel de confianza en la identificación de la versión (`HIGH`, `MEDIUM`, `LOW`). El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+  - `versionBasis`: criterio aplicado para la selección de la versión (`TEXT` por coincidencia textual o especificación directa, `LOWEST_PRICE` por desempate según menor precio mediano de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+- Actualización de la especificación OpenAPI (`openapi/vehicle-valuation-api.yaml`) incorporando los nuevos campos en `VersionInferenceResult` y `Resolution`.
+
 ## [3.1.0] - 2026-11-05
 
 - `comparables[].versionIdentified` y `comparables[].regionIdentified` (opcionales): indican si se identificaron la versión y la región; en informes históricos ausentes, se interpretan mediante las cadenas `version` y `region`.

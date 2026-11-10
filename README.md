@@ -500,6 +500,8 @@ interface VehicleResolutionRequest {
 interface VehicleResolutionResult {
   catalogVersion: string;
   certainty: "EXACT" | "HIGH" | "LOW";
+  versionConfidence?: "HIGH" | "MEDIUM" | "LOW";
+  versionBasis?: "TEXT" | "LOWEST_PRICE" | "SIMPLEST";
   fields: {
     mark?: { value: string; source: string };
     model?: { value: string; source: string };
@@ -601,7 +603,14 @@ interface TrimInferenceResult {
     score?: number;
   }>;
   totalCandidates: number;
+  versionConfidence?: "HIGH" | "MEDIUM" | "LOW";
+  versionBasis?: "TEXT" | "LOWEST_PRICE" | "SIMPLEST";
 }
+```
+
+Los campos `versionConfidence` y `versionBasis` son aditivos y opcionales:
+- `versionConfidence` (`HIGH` | `MEDIUM` | `LOW`): nivel de confianza en la identificación de la versión seleccionada. El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+- `versionBasis` (`TEXT` | `LOWEST_PRICE` | `SIMPLEST`): criterio aplicado en la selección (`TEXT` por coincidencia textual o especificación directa, `LOWEST_PRICE` por desempate según menor precio de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
 ```
 
 **Ejemplo:**

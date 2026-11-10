@@ -1534,6 +1534,24 @@ components:
           type: number
           format: double
           description: Diferencia entre score del primer y segundo candidato antes de truncar.
+        versionConfidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+          description: >-
+            Nivel de confianza en la identificación de la versión seleccionada.
+            HIGH indica coincidencia clara o atributos excluyentes; MEDIUM, desempate por menor precio
+            de mercado; LOW, versiones indistinguibles (precios similares o sin muestra suficiente).
+            El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
+            Se omite con outcome no_match o si no está disponible.
+        versionBasis:
+          type: string
+          enum: [TEXT, LOWEST_PRICE, SIMPLEST]
+          description: >-
+            Criterio aplicado para la selección de la versión.
+            TEXT indica selección por evidencia textual o especificación directa;
+            LOWEST_PRICE, desempate por menor precio mediano de mercado;
+            SIMPLEST, desempate por versión base o más simple del catálogo.
+            Se omite con outcome no_match o si no está disponible.
         versions:
           type: array
           items:
@@ -1602,6 +1620,24 @@ components:
         search: { type: string }
         certainty: { type: string, enum: [EXACT, HIGH, LOW] }
         topMargin: { type: number, format: double }
+        versionConfidence:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+          description: >-
+            Nivel de confianza en la identificación de la versión seleccionada.
+            HIGH indica coincidencia clara o atributos excluyentes; MEDIUM, desempate por menor precio
+            de mercado; LOW, versiones indistinguibles (precios similares o sin muestra suficiente).
+            El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
+            Se omite cuando no hay coincidencia o si no está disponible.
+        versionBasis:
+          type: string
+          enum: [TEXT, LOWEST_PRICE, SIMPLEST]
+          description: >-
+            Criterio aplicado para la selección de la versión.
+            TEXT indica selección por evidencia textual o especificación directa;
+            LOWEST_PRICE, desempate por menor precio mediano de mercado;
+            SIMPLEST, desempate por versión base o más simple del catálogo.
+            Se omite cuando no hay coincidencia o si no está disponible.
         fields:
           type: object
           additionalProperties: true

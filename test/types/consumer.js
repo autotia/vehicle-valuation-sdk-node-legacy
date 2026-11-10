@@ -22,9 +22,20 @@ async function testConsumer(client) {
       const currencyCode = data.localization.currency.code;
       const mark = data.vehicle.mark;
       const resCertainty = data.resolution.certainty;
+      const resVersionConfidence = data.resolution.versionConfidence;
+      const resVersionBasis = data.resolution.versionBasis;
       const resolvedModel = data.resolution.fields.model.value;
 
-      void [schemaVer, locale, currencyCode, mark, resCertainty, resolvedModel];
+      void [
+        schemaVer,
+        locale,
+        currencyCode,
+        mark,
+        resCertainty,
+        resVersionConfidence,
+        resVersionBasis,
+        resolvedModel,
+      ];
 
       // 2. Sección price (price-v2)
       const priceSection = data.sections.price;
