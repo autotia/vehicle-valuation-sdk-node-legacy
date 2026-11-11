@@ -22,8 +22,8 @@ async function testConsumer(client) {
       const currencyCode = data.localization.currency.code;
       const mark = data.vehicle.mark;
       const resCertainty = data.resolution.certainty;
-      const resVersionConfidence = data.resolution.versionConfidence;
-      const resVersionBasis = data.resolution.versionBasis;
+      const resVersionConfidence = order.resolution?.versionConfidence;
+      const resVersionBasis = order.resolution?.versionBasis;
       const resolvedModel = data.resolution.fields.model.value;
 
       void [
@@ -101,51 +101,13 @@ async function testConsumer(client) {
         void usageSection.data.campoFicticio;
       }
 
-      // 5. Sección listingAnalysis (listing-analysis-v2)
-      const listingSection = data.sections.listingAnalysis;
-      if (
-        listingSection &&
-        listingSection.status === "AVAILABLE" &&
-        listingSection.data
-      ) {
-        const scoreVal = listingSection.data.score.value;
-        const pubPrice = listingSection.data.listingFacts.publishedPrice;
-        const publishedOdo = listingSection.data.listingFacts.publishedOdometer;
-        const entryOffer = listingSection.data.negotiationBand?.entryOffer;
-        const odoMatches = listingSection.data.odometerReading?.matches;
-        void [scoreVal, pubPrice, publishedOdo, entryOffer, odoMatches];
-
-        // @ts-expect-error Propiedad inexistente en análisis de publicación
-        void listingSection.data.noExiste;
-      }
-
-      // 6. Sección priceHistory (price-history-v1)
-      const histSection = data.sections.priceHistory;
-      if (
-        histSection &&
-        histSection.status === "AVAILABLE" &&
-        histSection.data
-      ) {
-        const wDays = histSection.data.windowDays;
-        const pList = histSection.data.percentiles;
-        const firstPointDate = histSection.data.market.national[0]?.date;
-        const firstPointPrice = histSection.data.market.national[0]?.prices[0];
-        void [wDays, pList, firstPointDate, firstPointPrice];
-
-        // @ts-expect-error Propiedad inexistente en histórico de precios
-        void histSection.data.errorProp;
-      }
-
-      // 7. Sección desconocida conservada vía firma de índice abierta
+      // 5. Sección desconocida conservada vía firma de índice abierta
       const customSection = data.sections["custom-section"];
       if (customSection) {
         const cSchema = customSection.schema;
         const cStatus = customSection.status;
         void [cSchema, cStatus];
       }
-
-      // @ts-expect-error Propiedad v1 obsoleta en OrderResultData (era marketContext)
-      void data.marketContext;
     }
   }
 }

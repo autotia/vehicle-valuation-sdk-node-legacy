@@ -720,13 +720,19 @@ components:
     ReportResult:
       type: object
       additionalProperties: true
-      required: [schemaVersion, data]
+      required: [schemaVersion, localization, vehicle, resolution, sections]
       properties:
         schemaVersion:
           type: string
           example: report-result-v2
-        data:
-          $ref: '#/components/schemas/OrderResultData'
+        localization:
+          $ref: '#/components/schemas/Localization'
+        vehicle:
+          $ref: '#/components/schemas/ResultVehicle'
+        resolution:
+          $ref: '#/components/schemas/ResultResolution'
+        sections:
+          $ref: '#/components/schemas/ReportSections'
     OrderResult:
       $ref: '#/components/schemas/ReportResult'
     Currency:
@@ -774,22 +780,6 @@ components:
           example: km
         currency:
           $ref: '#/components/schemas/Currency'
-    OrderResultData:
-      type: object
-      additionalProperties: true
-      required: [schemaVersion, localization, vehicle, resolution, sections]
-      properties:
-        schemaVersion:
-          type: string
-          example: report-result-v2
-        localization:
-          $ref: '#/components/schemas/Localization'
-        vehicle:
-          $ref: '#/components/schemas/ResultVehicle'
-        resolution:
-          $ref: '#/components/schemas/Resolution'
-        sections:
-          $ref: '#/components/schemas/ReportSections'
     ReportSection:
       type: object
       additionalProperties: true
@@ -814,10 +804,6 @@ components:
           $ref: '#/components/schemas/ComparablesSectionV1'
         usage:
           $ref: '#/components/schemas/UsageSectionV1'
-        listingAnalysis:
-          $ref: '#/components/schemas/ListingAnalysisSectionV2'
-        priceHistory:
-          $ref: '#/components/schemas/PriceHistorySectionV1'
     PriceSectionV2:
       type: object
       additionalProperties: true
@@ -1110,245 +1096,10 @@ components:
         schemaVersion: { type: string }
         country: { type: string }
         generatedAt: { type: string }
-    ListingAnalysisSectionV2:
-      type: object
-      additionalProperties: true
-      required: [schema, status]
-      properties:
-        schema:
-          type: string
-          enum: [listing-analysis-v2]
-        status:
-          type: string
-          enum: [AVAILABLE, UNAVAILABLE, FAILED]
-        data:
-          $ref: '#/components/schemas/ListingAnalysisSectionDataV2'
-    ListingAnalysisSectionDataV2:
-      type: object
-      additionalProperties: true
-      required: [listingFacts, score, executiveSummary, sectionSummaries, findings, elementVerdicts, contextualQuestions, media]
-      properties:
-        listingFacts:
-          $ref: '#/components/schemas/ListingFactsV2'
-        score:
-          $ref: '#/components/schemas/ListingScoreV2'
-        executiveSummary:
-          type: array
-          items: { type: string }
-        sectionSummaries:
-          type: array
-          items: { $ref: '#/components/schemas/ListingSummaryV2' }
-        findings:
-          type: array
-          items: { $ref: '#/components/schemas/ListingFindingV2' }
-        elementVerdicts:
-          type: array
-          items: { $ref: '#/components/schemas/ListingVerdictV2' }
-        odometerReading:
-          $ref: '#/components/schemas/OdometerReadingV2'
-        vehicleAttributes:
-          $ref: '#/components/schemas/VehicleAttributesV2'
-        mediaSummary:
-          $ref: '#/components/schemas/MediaSummaryV2'
-        negotiationBand:
-          $ref: '#/components/schemas/NegotiationBandV2'
-        contextualQuestions:
-          type: array
-          items: { $ref: '#/components/schemas/ContextualQuestionV2' }
-        media:
-          type: array
-          items: { $ref: '#/components/schemas/ListingMediaV2' }
-    ListingFactsV2:
-      type: object
-      additionalProperties: true
-      required: [publicationId, portal, detailUrl, title, publishedPrice, publishedOdometer, sellerType, location, description, scrapedAt]
-      properties:
-        publicationId: { type: string }
-        portal: { type: string }
-        detailUrl: { type: string }
-        title: { type: string }
-        publishedPrice: { type: integer, format: int64 }
-        publishedOdometer: { type: integer }
-        sellerType: { type: string }
-        sellerName: { type: string }
-        location: { type: string }
-        description: { type: string }
-        scrapedAt: { type: string, format: date-time }
-    ListingScoreItemV2:
-      type: object
-      additionalProperties: true
-      required: [element, class, verdict, points, counted]
-      properties:
-        element: { type: string }
-        class: { type: string }
-        verdict: { type: string }
-        points: { type: integer }
-        counted: { type: boolean }
-    ListingScoreV2:
-      type: object
-      additionalProperties: true
-      required: [value, label, rawScore, maxPossible, items]
-      properties:
-        value: { type: integer }
-        label: { type: string }
-        rawScore: { type: integer }
-        maxPossible: { type: integer }
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/ListingScoreItemV2' }
-    ListingSummaryV2:
-      type: object
-      additionalProperties: true
-      required: [section, text]
-      properties:
-        section: { type: string }
-        text: { type: string }
-    CostBoundsV2:
-      type: object
-      additionalProperties: true
-      properties:
-        minAmount: { type: integer, format: int64 }
-        maxAmount: { type: integer, format: int64 }
-    ListingFindingV2:
-      type: object
-      additionalProperties: true
-      required: [text, severity, origin]
-      properties:
-        text: { type: string }
-        severity: { type: string }
-        origin: { type: string }
-        resourceKey: { type: string }
-        repairCostEstimate: { $ref: '#/components/schemas/CostBoundsV2' }
-    ListingVerdictV2:
-      type: object
-      additionalProperties: true
-      required: [element, verdict, rationale, resourceKeys]
-      properties:
-        element: { type: string }
-        verdict: { type: string }
-        rationale: { type: string }
-        resourceKeys:
-          type: array
-          items: { type: string }
-        points: { type: integer }
-    OdometerReadingV2:
-      type: object
-      additionalProperties: true
-      required: [listed, published, matches, threshold, listedDiffers, listedFallback]
-      properties:
-        listed: { type: integer }
-        published: { type: integer }
-        observed: { type: integer }
-        observedResourceKey: { type: string }
-        matches: { type: boolean }
-        threshold: { type: integer }
-        listedDiffers: { type: boolean }
-        listedFallback: { type: boolean }
-    VehicleAttributesV2:
-      type: object
-      additionalProperties: true
-      properties:
-        vin: { type: string }
-        bodyColor: { type: string }
-        licensePlate: { type: string }
-    MediaSummaryV2:
-      type: object
-      additionalProperties: true
-      required: [photoCount, videoCount, summaryText]
-      properties:
-        photoCount: { type: integer }
-        videoCount: { type: integer }
-        summaryText: { type: string }
-    NegotiationBandV2:
-      type: object
-      additionalProperties: true
-      required: [entryOffer, maxRecommended, published, saving, medianReferencePrice, arguments, available]
-      properties:
-        entryOffer: { type: integer, format: int64 }
-        maxRecommended: { type: integer, format: int64 }
-        published: { type: integer, format: int64 }
-        saving: { type: integer, format: int64 }
-        medianReferencePrice: { type: integer, format: int64 }
-        arguments:
-          type: array
-          items: { type: string }
-        available: { type: boolean }
-    ContextualQuestionV2:
-      type: object
-      additionalProperties: true
-      required: [key, text]
-      properties:
-        key: { type: string }
-        text: { type: string }
-    ListingMediaV2:
-      type: object
-      additionalProperties: true
-      required: [resourceKey, mediaType, url, section]
-      properties:
-        resourceKey: { type: string }
-        mediaType: { type: string }
-        url: { type: string }
-        section: { type: string }
-    PriceHistorySectionV1:
-      type: object
-      additionalProperties: true
-      required: [schema, status]
-      properties:
-        schema:
-          type: string
-          enum: [price-history-v1]
-        status:
-          type: string
-          enum: [AVAILABLE, UNAVAILABLE, FAILED]
-        data:
-          $ref: '#/components/schemas/PriceHistorySectionDataV1'
-    PriceHistorySectionDataV1:
-      type: object
-      additionalProperties: true
-      required: [windowDays, percentiles, market, private, dealer]
-      properties:
-        windowDays: { type: integer }
-        percentiles:
-          type: array
-          items: { type: integer }
-        market: { $ref: '#/components/schemas/HistoryPopulationV1' }
-        private: { $ref: '#/components/schemas/HistoryPopulationV1' }
-        dealer: { $ref: '#/components/schemas/HistoryPopulationV1' }
-    HistoryPointV1:
-      type: object
-      additionalProperties: true
-      required: [date, prices, lowConfidence]
-      properties:
-        date: { type: string }
-        prices:
-          type: array
-          items: { type: integer, format: int64 }
-        lowConfidence: { type: boolean }
-    RegionHistoryV1:
-      type: object
-      additionalProperties: true
-      required: [kind, region, points]
-      properties:
-        kind: { type: string, enum: [region, zone] }
-        region: { type: string }
-        points:
-          type: array
-          items: { $ref: '#/components/schemas/HistoryPointV1' }
-    HistoryPopulationV1:
-      type: object
-      additionalProperties: true
-      required: [national, regions]
-      properties:
-        national:
-          type: array
-          items: { $ref: '#/components/schemas/HistoryPointV1' }
-        regions:
-          type: array
-          items: { $ref: '#/components/schemas/RegionHistoryV1' }
     ResultVehicle:
       type: object
       additionalProperties: true
-      required: [mark, model, year, version, versionResolution, versionApplied]
+      required: [mark, model, year, version, versionApplied]
       properties:
         mark:
           type: string
@@ -1536,19 +1287,24 @@ components:
           description: Diferencia entre score del primer y segundo candidato antes de truncar.
         versionConfidence:
           type: string
-          enum: [HIGH, MEDIUM, LOW]
+          enum: [EXACT, HIGH, MEDIUM, LOW]
           description: >-
             Nivel de confianza en la identificación de la versión seleccionada.
-            HIGH indica coincidencia clara o atributos excluyentes; MEDIUM, desempate por menor precio
-            de mercado; LOW, versiones indistinguibles (precios similares o sin muestra suficiente).
+            EXACT indica que la versión llegó explícita y existe en el catálogo;
+            HIGH, que el texto deja una sola versión;
+            MEDIUM, que el texto aporta al menos un dato mecánico y se eligió la versión base más común
+            del mercado (o la más barata entre las igual de comunes), que además representa una parte
+            relevante de los avisos;
+            LOW, la misma elección pero con poca información o pocos datos de mercado.
             El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
             Se omite con outcome no_match o si no está disponible.
         versionBasis:
           type: string
-          enum: [TEXT, LOWEST_PRICE, SIMPLEST]
+          enum: [TEXT, MOST_COMMON, LOWEST_PRICE, SIMPLEST]
           description: >-
             Criterio aplicado para la selección de la versión.
             TEXT indica selección por evidencia textual o especificación directa;
+            MOST_COMMON, versión con más avisos del mercado;
             LOWEST_PRICE, desempate por menor precio mediano de mercado;
             SIMPLEST, desempate por versión base o más simple del catálogo.
             Se omite con outcome no_match o si no está disponible.
@@ -1622,35 +1378,67 @@ components:
         topMargin: { type: number, format: double }
         versionConfidence:
           type: string
-          enum: [HIGH, MEDIUM, LOW]
+          enum: [EXACT, HIGH, MEDIUM, LOW]
           description: >-
             Nivel de confianza en la identificación de la versión seleccionada.
-            HIGH indica coincidencia clara o atributos excluyentes; MEDIUM, desempate por menor precio
-            de mercado; LOW, versiones indistinguibles (precios similares o sin muestra suficiente).
+            EXACT indica que la versión llegó explícita y existe en el catálogo;
+            HIGH, que el texto deja una sola versión;
+            MEDIUM, que el texto aporta al menos un dato mecánico y se eligió la versión base más común
+            del mercado (o la más barata entre las igual de comunes), que además representa una parte
+            relevante de los avisos;
+            LOW, la misma elección pero con poca información o pocos datos de mercado.
             El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
             Se omite cuando no hay coincidencia o si no está disponible.
         versionBasis:
           type: string
-          enum: [TEXT, LOWEST_PRICE, SIMPLEST]
+          enum: [TEXT, MOST_COMMON, LOWEST_PRICE, SIMPLEST]
           description: >-
             Criterio aplicado para la selección de la versión.
             TEXT indica selección por evidencia textual o especificación directa;
+            MOST_COMMON, versión con más avisos del mercado;
             LOWEST_PRICE, desempate por menor precio mediano de mercado;
             SIMPLEST, desempate por versión base o más simple del catálogo.
             Se omite cuando no hay coincidencia o si no está disponible.
         fields:
           type: object
           additionalProperties: true
-          required: [model, version, region]
+          required: [model, version, region, odometerKm]
+          properties:
+            model: { $ref: '#/components/schemas/ResolvedStringField' }
+            version: { $ref: '#/components/schemas/ResolvedStringField' }
+            region: { $ref: '#/components/schemas/ResolvedStringField' }
+            odometerKm:
+              $ref: '#/components/schemas/ResolvedNumberField'
+              description: Kilometraje resuelto del vehículo en kilómetros.
+        selected:
+          $ref: '#/components/schemas/ResolutionCandidate'
+        alternatives:
+          type: array
+          items: { $ref: '#/components/schemas/ResolutionCandidate' }
+    ResultResolution:
+      type: object
+      description: >-
+        Resolución incluida dentro del resultado (`result.resolution`). El kilometraje va en
+        `fields.odometer` y no incluye `versionConfidence` ni `versionBasis`.
+      additionalProperties: true
+      required: [catalogVersion, sourceCatalogVersion, referenceYear, certainty, topMargin, fields, selected, alternatives]
+      properties:
+        catalogVersion: { type: string }
+        sourceCatalogVersion: { type: string }
+        usageCurveVersion: { type: string }
+        referenceYear: { type: integer }
+        search: { type: string }
+        certainty: { type: string, enum: [EXACT, HIGH, LOW] }
+        topMargin: { type: number, format: double }
+        fields:
+          type: object
+          additionalProperties: true
+          required: [model, version, region, odometer]
           properties:
             model: { $ref: '#/components/schemas/ResolvedStringField' }
             version: { $ref: '#/components/schemas/ResolvedStringField' }
             region: { $ref: '#/components/schemas/ResolvedStringField' }
             odometer:
-              $ref: '#/components/schemas/ResolvedNumberField'
-              deprecated: true
-              description: Odómetro resuelto en kilómetros (nombre legacy; preferir odometerKm).
-            odometerKm:
               $ref: '#/components/schemas/ResolvedNumberField'
               description: Kilometraje resuelto del vehículo en kilómetros.
         selected:
