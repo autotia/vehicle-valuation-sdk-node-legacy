@@ -1,5 +1,18 @@
 # Registro de cambios
 
+## [4.0.0] - Unreleased
+
+Versión mayor: los tipos y el mapeo del SDK se alinean con lo que la API emite realmente. No se conservan alias ni campos obsoletos.
+
+- `versionConfidence` admite el nuevo valor `EXACT` (la versión llegó explícita y existe en el catálogo): `EXACT` | `HIGH` | `MEDIUM` | `LOW`.
+- `versionBasis` admite el nuevo valor `MOST_COMMON` (se eligió la versión con más avisos del mercado): `TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`.
+- Semántica vigente de la confianza: `HIGH` cuando el texto deja una sola versión; `MEDIUM` cuando el texto aporta al menos un dato mecánico y se eligió la versión base más común del mercado (o la más barata entre las igual de comunes) que representa una parte relevante de los avisos; `LOW` con la misma elección pero con poca información o pocos datos de mercado. Las versiones exclusivas con pocos avisos ya no se eligen por descarte.
+- **Cambio incompatible:** `order.result` es ahora el resultado `report-result-v2` directamente. `schemaVersion`, `localization`, `vehicle`, `resolution` y `sections` están en `order.result`; se elimina el nivel `order.result.data` que la API nunca envió. Se elimina el tipo `OrderResultData`.
+- **Cambio incompatible:** `Resolution.fields` (nivel de pedido y `catalog.resolveVehicle`) informa el kilometraje únicamente en `odometerKm` (obligatorio); se elimina `odometer`. Dentro del resultado, `order.result.resolution` usa el nuevo tipo `ResultResolution`, con el kilometraje en `fields.odometer` y sin `versionConfidence` ni `versionBasis`.
+- **Cambio incompatible:** se eliminan `OrderStatus.pollAfterMs` (la consulta de estado no lo informa; el intervalo sugerido llega solo en la aceptación del pedido) y las secciones `listingAnalysis` y `priceHistory` con todos sus tipos (`ListingAnalysisSectionData`, `PriceHistorySectionData` y asociados), porque el producto de tasación solo entrega `price`, `comparables` y `usage`. Una sección futura sigue accesible mediante la firma de índice abierta de `ReportSections`.
+- `OrderResultVehicle.versionResolution` pasa a ser opcional, como la API (se omite cuando no está disponible).
+- README, especificación OpenAPI y suite de conformidad actualizados.
+
 ## [3.2.0] - 2026-11-10
 
 - `versionConfidence` y `versionBasis` (opcionales): nuevos campos aditivos en la inferencia de versión (`TrimInferenceResult`) y en la resolución vehicular (`Resolution`).

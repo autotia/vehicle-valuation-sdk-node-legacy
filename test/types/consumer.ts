@@ -1,5 +1,4 @@
 import type {
-  OrderResultData,
   OrderStatus,
   PriceSectionData,
   ReportSection,
@@ -20,10 +19,8 @@ export async function testTypeScriptConsumer(
   );
 
   if (order.status === "COMPLETED" && order.result) {
-    const data = order.result.data;
-
-    if ("sections" in data && "localization" in data) {
-      const resultData: OrderResultData = data as OrderResultData;
+    {
+      const resultData = order.result;
 
       // 1. Verificación explícita de metadatos globales
       const schemaVer: "report-result-v2" | string = resultData.schemaVersion;
@@ -34,11 +31,12 @@ export async function testTypeScriptConsumer(
       const versionApplied: boolean = resultData.vehicle.versionApplied;
       const certainty: string = resultData.resolution.certainty;
       const versionConf: VersionConfidence | undefined =
-        resultData.resolution.versionConfidence;
+        order.resolution?.versionConfidence;
       const versionBasis: VersionBasis | undefined =
-        resultData.resolution.versionBasis;
-      const odoResolved: number | undefined =
-        resultData.resolution.fields.odometer?.value;
+        order.resolution?.versionBasis;
+      const odoResolved: number = resultData.resolution.fields.odometer.value;
+      const odoOrderLevel: number | undefined =
+        order.resolution?.fields.odometerKm.value;
 
       void [
         schemaVer,
@@ -51,6 +49,7 @@ export async function testTypeScriptConsumer(
         versionConf,
         versionBasis,
         odoResolved,
+        odoOrderLevel,
       ];
 
       // 2. Sección price: opcionalidad explícita y tipos numéricos
@@ -135,55 +134,7 @@ export async function testTypeScriptConsumer(
         void usageSection.data.badField;
       }
 
-      // 5. Sección listingAnalysis: score, hechos objetivos y banda de negociación
-      const listingSection = resultData.sections.listingAnalysis;
-      if (
-        listingSection &&
-        listingSection.status === "AVAILABLE" &&
-        listingSection.data
-      ) {
-        const scoreValue: number = listingSection.data.score.value;
-        const publishedPrice: number =
-          listingSection.data.listingFacts.publishedPrice;
-        const entryOffer: number | undefined =
-          listingSection.data.negotiationBand?.entryOffer;
-        const matches: boolean | undefined =
-          listingSection.data.odometerReading?.matches;
-        void [scoreValue, publishedPrice, entryOffer, matches];
-
-        // @ts-expect-error Propiedad inexistente en listingAnalysis
-        void listingSection.data.campoInvalido;
-      }
-
-      // 6. Sección priceHistory: precios como arreglo de números
-      const histSection = resultData.sections.priceHistory;
-      if (
-        histSection &&
-        histSection.status === "AVAILABLE" &&
-        histSection.data
-      ) {
-        const windowDays: number = histSection.data.windowDays;
-        const percentiles: number[] = histSection.data.percentiles;
-        const point = histSection.data.market.national[0];
-        if (point) {
-          const date: string = point.date;
-          const prices: number[] = point.prices;
-          void [date, prices];
-        }
-        void [windowDays, percentiles];
-
-        const regionSeries = histSection.data.market.regions[0];
-        if (regionSeries) {
-          const regionKind: "region" | "zone" | string = regionSeries.kind;
-          const regionCode: string = regionSeries.region;
-          void [regionKind, regionCode];
-        }
-
-        // @ts-expect-error Propiedad inexistente en priceHistory
-        void histSection.data.fakeProp;
-      }
-
-      // 7. Sección desconocida mediante index signature
+      // 5. Sección desconocida mediante index signature
       const unknownSection:
         | ReportSection<string, Record<string, unknown>>
         | undefined = resultData.sections["future-section"];
@@ -192,9 +143,6 @@ export async function testTypeScriptConsumer(
         const status: string = unknownSection.status;
         void [schema, status];
       }
-
-      // @ts-expect-error Propiedad obsoleta de nivel superior v1
-      void resultData.purchase;
     }
   }
 

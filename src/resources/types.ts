@@ -1,8 +1,6 @@
 import type { CallOptions } from "../core/types";
 import type {
   ComparablesSectionData,
-  ListingAnalysisSectionData,
-  PriceHistorySectionData,
   PriceSectionData,
   UsageSectionData,
 } from "./sections/index";
@@ -89,8 +87,8 @@ export interface OrderResultVehicle {
   version: string;
   /** Versión canónica del catálogo oficial; puede omitirse si no fue homologada. */
   canonicalVersion?: string | undefined;
-  /** Método de resolución de versión aplicado (por ejemplo 'MATCHED', 'FALLBACK'). */
-  versionResolution: string;
+  /** Método de resolución de versión aplicado (por ejemplo 'MATCHED', 'FALLBACK'); se omite si no está disponible. */
+  versionResolution?: string | undefined;
   /** Indica si la versión resuelta influyó directamente en el modelo de tasación. */
   versionApplied: boolean;
   [key: string]: unknown;
@@ -130,14 +128,6 @@ export interface ReportSections {
     | undefined;
   /** Sección de análisis de intensidad de uso y kilometraje esperado (schema: usage-v1). */
   usage?: ReportSection<"usage-v1", UsageSectionData> | undefined;
-  /** Sección de análisis de publicación e inspección visual (schema: listing-analysis-v2). */
-  listingAnalysis?:
-    | ReportSection<"listing-analysis-v2", ListingAnalysisSectionData>
-    | undefined;
-  /** Sección de evolución temporal e histórico de precios (schema: price-history-v1). */
-  priceHistory?:
-    | ReportSection<"price-history-v1", PriceHistorySectionData>
-    | undefined;
   /** Firma de índice abierta para conservar secciones no tipadas o futuras sin error de deserialización. */
   [key: string]: ReportSection<string, Record<string, unknown>> | undefined;
 }
@@ -181,29 +171,20 @@ export interface Localization {
 }
 
 /**
- * Contenido principal del resultado del informe modular (schemaVersion: 'report-result-v2').
+ * Resultado completo del pedido de tasación vehicular (schemaVersion: 'report-result-v2').
+ * Se entrega directamente en `order.result`; las secciones están en `order.result.sections`.
  */
-export type OrderResultData = {
-  /** Versión del esquema del resultado ('report-result-v2'). */
+export interface OrderResult {
+  /** Versión del esquema del resultado ('report-result-v2' o string para esquemas futuros). */
   schemaVersion: "report-result-v2" | string;
   /** Metadatos de localización regional y convenciones de formato. */
   localization: Localization;
   /** Atributos del vehículo evaluado en el informe. */
   vehicle: OrderResultVehicle;
-  /** Metadatos de resolución de catálogo y campos asociados. */
-  resolution: Resolution;
+  /** Metadatos de resolución de catálogo incluidos en el informe. */
+  resolution: ResultResolution;
   /** Secciones generadas del informe según el producto contratado. */
   sections: ReportSections;
-};
-
-/**
- * Resultado completo del pedido de tasación vehicular.
- */
-export interface OrderResult {
-  /** Versión del esquema del resultado ('report-result-v2' o string para esquemas futuros). */
-  schemaVersion: "report-result-v2" | string;
-  /** Datos estructurados por secciones o registro genérico ante esquema no reconocido. */
-  data: OrderResultData | Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -217,8 +198,6 @@ export interface OrderStatus {
   reportType: string;
   /** Estado del procesamiento ('PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'). */
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
-  /** Intervalo de polling recomendado en milisegundos (presente en 202). */
-  pollAfterMs?: number | undefined;
   /** Identificador de la venta asociada en Pagos ('sal_…'), si existe. */
   saleId?: string | undefined;
   /** Resultado de la tasación cuando el estado es 'COMPLETED'. */
@@ -234,24 +213,31 @@ export interface OrderStatus {
 export type ResolutionCertainty = "EXACT" | "HIGH" | "LOW" | string;
 
 /**
- * Nivel de confianza en la identificación de la versión del vehículo ('HIGH' | 'MEDIUM' | 'LOW').
+ * Nivel de confianza en la identificación de la versión del vehículo ('EXACT' | 'HIGH' | 'MEDIUM' | 'LOW').
  *
- * - `HIGH`: Coincidencia inequívoca respaldada por evidencia textual o por atributos excluyentes (potencia, transmisión, puertas).
- * - `MEDIUM`: Desempate entre múltiples candidatas seleccionando la de menor precio mediano de mercado cuando existe diferencia apreciable.
- * - `LOW`: Versiones candidatas indistinguibles (precios similares con diferencia menor al 5 % o sin muestra suficiente de precios, seleccionando la versión base o más simple).
+ * - `EXACT`: La versión llegó explícita en la solicitud y existe en el catálogo.
+ * - `HIGH`: El texto deja una sola versión posible.
+ * - `MEDIUM`: El texto aporta al menos un dato mecánico y se eligió la versión base más común del mercado (o la más barata entre las igual de comunes), que además representa una parte relevante de los avisos.
+ * - `LOW`: Misma elección que `MEDIUM`, pero con poca información en el texto o pocos datos de mercado.
  *
- * Nota: El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial (en ese caso el riesgo es acotado porque las versiones candidatas comparten precios similares).
+ * Nota: El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial.
  */
-export type VersionConfidence = "HIGH" | "MEDIUM" | "LOW" | string;
+export type VersionConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | string;
 
 /**
- * Criterio o base aplicada para la selección de la versión del vehículo ('TEXT' | 'LOWEST_PRICE' | 'SIMPLEST').
+ * Criterio o base aplicada para la selección de la versión del vehículo ('TEXT' | 'MOST_COMMON' | 'LOWEST_PRICE' | 'SIMPLEST').
  *
  * - `TEXT`: La versión se seleccionó por coincidencia textual o especificación directa.
+ * - `MOST_COMMON`: Se eligió la versión con más avisos del mercado.
  * - `LOWEST_PRICE`: Desempate aplicado seleccionando la versión con menor precio mediano de mercado observado.
  * - `SIMPLEST`: Respaldo determinista seleccionando la versión base o más simple del catálogo (menor potencia, transmisión manual, menor equipamiento).
  */
-export type VersionBasis = "TEXT" | "LOWEST_PRICE" | "SIMPLEST" | string;
+export type VersionBasis =
+  | "TEXT"
+  | "MOST_COMMON"
+  | "LOWEST_PRICE"
+  | "SIMPLEST"
+  | string;
 
 /** Fuente u origen del valor asignado a un campo resuelto. */
 export type ResolutionFieldSource =
@@ -319,13 +305,13 @@ export interface Resolution {
   /** Margen de ventaja del mejor candidato respecto al segundo en inferencia. */
   topMargin: number;
   /**
-   * Nivel de confianza en la identificación de la versión ('HIGH', 'MEDIUM', 'LOW').
+   * Nivel de confianza en la identificación de la versión ('EXACT', 'HIGH', 'MEDIUM', 'LOW').
    * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
    * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
    */
   versionConfidence?: VersionConfidence | undefined;
   /**
-   * Criterio o base aplicada para la selección de la versión ('TEXT', 'LOWEST_PRICE', 'SIMPLEST').
+   * Criterio o base aplicada para la selección de la versión ('TEXT', 'MOST_COMMON', 'LOWEST_PRICE', 'SIMPLEST').
    * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
    */
   versionBasis?: VersionBasis | undefined;
@@ -348,10 +334,52 @@ export interface ResolutionFields {
   version: ResolvedStringField;
   /** Región geográfica aplicada y su origen. */
   region: ResolvedStringField;
-  /** Kilometraje resuelto en km sin sufijo de unidad (contrato nuevo). */
-  odometer?: ResolvedNumberField | undefined;
-  /** Kilometraje resuelto en km (compatibilidad con contrato previo). */
-  odometerKm?: ResolvedNumberField | undefined;
+  /** Kilometraje resuelto en km y su origen. */
+  odometerKm: ResolvedNumberField;
+  [key: string]: unknown;
+}
+
+/**
+ * Metadatos de resolución incluidos dentro del resultado (`order.result.resolution`).
+ * A diferencia de `Resolution` (nivel de pedido), el kilometraje se informa en `fields.odometer`
+ * y no incluye `versionConfidence` ni `versionBasis`.
+ */
+export interface ResultResolution {
+  /** Versión del catálogo vehicular utilizada para la resolución. */
+  catalogVersion: string;
+  /** Versión del catálogo de origen de los datos. */
+  sourceCatalogVersion: string;
+  /** Versión de la curva de kilometraje utilizada en inferencias, si aplica. */
+  usageCurveVersion?: string | undefined;
+  /** Año de fabricación de referencia utilizado. */
+  referenceYear: number;
+  /** Texto de búsqueda original en caso de inferencia flexible. */
+  search?: string | undefined;
+  /** Nivel de certeza de la resolución ('EXACT', 'HIGH', 'LOW'). */
+  certainty: ResolutionCertainty;
+  /** Margen de ventaja del mejor candidato respecto al segundo en inferencia. */
+  topMargin: number;
+  /** Detalle campo a campo de los valores y fuentes aplicadas. */
+  fields: ResultResolutionFields;
+  /** Versión candidata seleccionada como coincidencia definitiva. */
+  selected: ResolutionCandidate;
+  /** Otras versiones candidatas consideradas durante la evaluación. */
+  alternatives: ResolutionCandidate[];
+  [key: string]: unknown;
+}
+
+/**
+ * Campos clave del vehículo con su procedencia dentro del resultado.
+ */
+export interface ResultResolutionFields {
+  /** Modelo del vehículo y su origen. */
+  model: ResolvedStringField;
+  /** Versión del vehículo y su origen. */
+  version: ResolvedStringField;
+  /** Región geográfica aplicada y su origen. */
+  region: ResolvedStringField;
+  /** Kilometraje resuelto en km y su origen. */
+  odometer: ResolvedNumberField;
   [key: string]: unknown;
 }
 
@@ -481,13 +509,13 @@ export interface TrimInferenceResult {
   /** Diferencia de puntaje entre el primer y segundo candidato. */
   topMargin: number;
   /**
-   * Nivel de confianza en la identificación de la versión ('HIGH', 'MEDIUM', 'LOW').
+   * Nivel de confianza en la identificación de la versión ('EXACT', 'HIGH', 'MEDIUM', 'LOW').
    * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
    * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
    */
   versionConfidence?: VersionConfidence | undefined;
   /**
-   * Criterio o base aplicada para la selección de la versión ('TEXT', 'LOWEST_PRICE', 'SIMPLEST').
+   * Criterio o base aplicada para la selección de la versión ('TEXT', 'MOST_COMMON', 'LOWEST_PRICE', 'SIMPLEST').
    * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
    */
   versionBasis?: VersionBasis | undefined;

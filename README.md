@@ -47,7 +47,7 @@ async function main() {
 
   // 3. Consumir las secciones modulares del resultado v2
   if (order.result && order.result.schemaVersion === "report-result-v2") {
-    const price = order.result.data.sections.price && order.result.data.sections.price.data;
+    const price = order.result.sections.price && order.result.sections.price.data;
     if (price) {
       console.log("Calidad de tasación: " + price.qualityScore + "/100");
       console.log("Rango sugerido de compra: $" + price.purchase.minPrice + " a $" + price.purchase.maxPrice + " CLP");
@@ -55,7 +55,7 @@ async function main() {
       console.log("Margen bruto promedio: $" + price.grossMarginEstimate.avgGrossMargin + " CLP (" + price.grossMarginEstimate.avgGrossMarginPercent + "%)");
     }
 
-    const comparables = order.result.data.sections.comparables && order.result.data.sections.comparables.data;
+    const comparables = order.result.sections.comparables && order.result.sections.comparables.data;
     if (comparables) {
       console.log("Comparables directos encontrados: " + comparables.items.length);
       for (const item of comparables.items) {
@@ -285,7 +285,6 @@ interface OrderStatus {
   orderId: string;
   reportType: "general-price" | string;
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
-  pollAfterMs?: number;
   saleId?: string;
   result?: OrderResult;
   failure?: OrderFailure;
@@ -498,19 +497,32 @@ interface VehicleResolutionRequest {
 **Retorno (`VehicleResolutionResult`):**
 ```ts
 interface VehicleResolutionResult {
+  mark: string;
+  model: string;
+  year: number;
+  version: string;
+  region: string;       // vacía si es precio nacional
+  odometerKm: number;
+  resolution: Resolution;
+}
+
+interface Resolution {
   catalogVersion: string;
+  sourceCatalogVersion: string;
+  usageCurveVersion?: string;
+  referenceYear: number;
+  search?: string;
   certainty: "EXACT" | "HIGH" | "LOW";
-  versionConfidence?: "HIGH" | "MEDIUM" | "LOW";
-  versionBasis?: "TEXT" | "LOWEST_PRICE" | "SIMPLEST";
+  topMargin: number;
+  versionConfidence?: "EXACT" | "HIGH" | "MEDIUM" | "LOW";
+  versionBasis?: "TEXT" | "MOST_COMMON" | "LOWEST_PRICE" | "SIMPLEST";
   fields: {
-    mark?: { value: string; source: string };
-    model?: { value: string; source: string };
-    year?: { value: number; source: string };
-    version?: { value: string; source: string };
-    odometer?: { value: number; source: string };
-    region?: { value: string; source: string };
+    model: { value: string; source: string };
+    version: { value: string; source: string };
+    region: { value: string; source: string };
+    odometerKm: { value: number; source: string };
   };
-  selected?: { model: string; version: string; confidence: number; score: number };
+  selected: { model: string; version: string; confidence: number; score: number };
   alternatives: Array<{ model: string; version: string; confidence: number; score: number }>;
 }
 ```
@@ -603,14 +615,18 @@ interface TrimInferenceResult {
     score?: number;
   }>;
   totalCandidates: number;
-  versionConfidence?: "HIGH" | "MEDIUM" | "LOW";
-  versionBasis?: "TEXT" | "LOWEST_PRICE" | "SIMPLEST";
+  versionConfidence?: "EXACT" | "HIGH" | "MEDIUM" | "LOW";
+  versionBasis?: "TEXT" | "MOST_COMMON" | "LOWEST_PRICE" | "SIMPLEST";
 }
 ```
 
 Los campos `versionConfidence` y `versionBasis` son aditivos y opcionales:
-- `versionConfidence` (`HIGH` | `MEDIUM` | `LOW`): nivel de confianza en la identificación de la versión seleccionada. El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
-- `versionBasis` (`TEXT` | `LOWEST_PRICE` | `SIMPLEST`): criterio aplicado en la selección (`TEXT` por coincidencia textual o especificación directa, `LOWEST_PRICE` por desempate según menor precio de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+- `versionConfidence` (`EXACT` | `HIGH` | `MEDIUM` | `LOW`): nivel de confianza en la identificación de la versión seleccionada. El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+  - `EXACT`: la versión llegó explícita y existe en el catálogo.
+  - `HIGH`: el texto deja una sola versión posible.
+  - `MEDIUM`: el texto aporta al menos un dato mecánico y se eligió la versión base más común del mercado (o la más barata entre las igual de comunes), que además representa una parte relevante de los avisos.
+  - `LOW`: misma elección que `MEDIUM`, pero con poca información en el texto o pocos datos de mercado.
+- `versionBasis` (`TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`): criterio aplicado en la selección (`TEXT` por coincidencia textual o especificación directa, `MOST_COMMON` por ser la versión con más avisos del mercado, `LOWEST_PRICE` por desempate según menor precio de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible. Las versiones exclusivas con pocos avisos ya no se eligen por descarte.
 ```
 
 **Ejemplo:**
@@ -635,14 +651,9 @@ La respuesta consta de metadatos globales (`localization`, `vehicle`, `resolutio
 ```ts
 interface OrderResult {
   schemaVersion: "report-result-v2" | string;
-  data: OrderResultData | Record<string, unknown>;
-}
-
-interface OrderResultData {
-  schemaVersion: "report-result-v2" | string;
   localization: Localization;
   vehicle: OrderResultVehicle;
-  resolution: Resolution;
+  resolution: ResultResolution; // el kilometraje va en fields.odometer
   sections: ReportSections;
 }
 ```
@@ -705,20 +716,6 @@ interface ReportSection<S extends string, T> {
    - `vehicleAgeComparable`: Indica si el vehículo está dentro del rango de comparabilidad estadística.
    - `totalSampleSize`: Tamaño total de muestra analizada.
 
-4. **`listingAnalysis` (`listing-analysis-v2`)** — *Disponible en informes extendidos de análisis de publicación*:
-   - `listingFacts`: Datos capturados del aviso (título, precio publicado, odómetro, vendedor, descripción, ubicación).
-   - `score`: Puntaje integral de la publicación (0 a 100), veredictos por elemento y nivel de riesgo.
-   - `executiveSummary`: Síntesis ejecutiva de hallazgos.
-   - `odometerReading`: Comparación entre odómetro publicado y verificado en tablero.
-   - `negotiationBand`: Banda comercial de negociación sugerida sobre la curva de mercado (`entryOffer`, `maxRecommended`, `published`, `saving`).
-   - `findings`: Observaciones detectadas con costo estimado de reacondicionamiento.
-   - `contextualQuestions`: Preguntas sugeridas para el comprador al contactar al vendedor.
-
-5. **`priceHistory` (`price-history-v1`)** — *Disponible en informes con análisis histórico*:
-   - `windowDays`: Ventana histórica evaluada (60 días).
-   - `percentiles`: Percentiles incluidos en la serie.
-   - `market`, `private`, `dealer`: Series temporales históricas con puntos diarios `{ date, prices, lowConfidence }` a nivel nacional y regional. Cada serie de `regions` incluye `kind` (`region` para una región administrativa o `zone` para una zona geográfica agrupada), `region` (código) y `points`. El SDK entrega `kind` tal como llega: si una respuesta no lo incluye, queda ausente y debe tratarse como desconocido.
-
 ---
 
 ### Ejemplo Completo de Respuesta: Producto `general-price` (B2B)
@@ -733,241 +730,364 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
   "saleId": "sal_01j7x000000000000000000000",
   "result": {
     "schemaVersion": "report-result-v2",
-    "data": {
-      "schemaVersion": "report-result-v2",
-      "localization": {
-        "locale": "es-CL",
-        "timeZone": "America/Santiago",
-        "dateFormat": "dd-MM-yyyy",
-        "distanceUnit": "km",
-        "currency": {
-          "code": "CLP",
-          "name": "Peso chileno",
-          "symbol": "$",
-          "symbolPosition": "BEFORE",
-          "decimals": 0,
-          "decimalSeparator": ",",
-          "groupSeparator": "."
+    "localization": {
+      "locale": "es-CL",
+      "timeZone": "America/Santiago",
+      "dateFormat": "dd-MM-yyyy",
+      "distanceUnit": "km",
+      "currency": {
+        "code": "CLP",
+        "name": "Peso chileno",
+        "symbol": "$",
+        "symbolPosition": "BEFORE",
+        "decimals": 0,
+        "decimalSeparator": ",",
+        "groupSeparator": "."
+      }
+    },
+    "vehicle": {
+      "mark": "Toyota",
+      "model": "Yaris",
+      "year": 2021,
+      "version": "1.5",
+      "canonicalVersion": "1.5 XLS",
+      "versionResolution": "MATCHED",
+      "versionApplied": true
+    },
+    "resolution": {
+      "catalogVersion": "cat-2026-v1",
+      "sourceCatalogVersion": "cat-2026-v1",
+      "referenceYear": 2026,
+      "certainty": "EXACT",
+      "topMargin": 0.05,
+      "fields": {
+        "model": {
+          "value": "Yaris",
+          "source": "EXACT"
+        },
+        "version": {
+          "value": "1.5",
+          "source": "EXACT"
+        },
+        "region": {
+          "value": "13",
+          "source": "EXACT"
+        },
+        "odometer": {
+          "value": 50000,
+          "source": "PROVIDED"
         }
       },
-      "vehicle": {
-        "mark": "Toyota",
+      "selected": {
         "model": "Yaris",
-        "year": 2021,
         "version": "1.5",
-        "canonicalVersion": "1.5 XLS",
-        "versionResolution": "MATCHED",
-        "versionApplied": true
+        "confidence": 95,
+        "score": 98.5
       },
-      "resolution": {
-        "catalogVersion": "cat-2026-v1",
-        "sourceCatalogVersion": "cat-2026-v1",
-        "referenceYear": 2026,
-        "certainty": "EXACT",
-        "topMargin": 0.05,
-        "fields": {
-          "model": { "value": "Yaris", "source": "EXACT" },
-          "version": { "value": "1.5", "source": "EXACT" },
-          "region": { "value": "13", "source": "EXACT" },
-          "odometer": { "value": 50000, "source": "PROVIDED" }
-        },
-        "selected": {
-          "model": "Yaris",
-          "version": "1.5",
-          "confidence": 95,
-          "score": 98.5
-        },
-        "alternatives": []
-      },
-      "sections": {
-        "price": {
-          "schema": "price-v2",
-          "status": "AVAILABLE",
-          "data": {
-            "qualityScore": 85,
-            "qualityInputs": {
-              "publicationCount": 45,
-              "support": 0.95,
-              "effectiveWeight": 38.2,
-              "lowConfidence": false,
-              "converged": true,
-              "crossingsCorrected": 0
-            },
-            "marketContext": {
-              "requestedRegion": "13",
-              "appliedRegion": "13",
-              "isNationalReference": false,
-              "odometer": 50000
-            },
-            "purchase": {
+      "alternatives": []
+    },
+    "sections": {
+      "price": {
+        "schema": "price-v2",
+        "status": "AVAILABLE",
+        "data": {
+          "qualityScore": 85,
+          "qualityInputs": {
+            "publicationCount": 45,
+            "support": 0.95,
+            "effectiveWeight": 38.2,
+            "lowConfidence": false,
+            "converged": true,
+            "crossingsCorrected": 0
+          },
+          "marketContext": {
+            "requestedRegion": "13",
+            "appliedRegion": "13",
+            "isNationalReference": false,
+            "odometer": 50000
+          },
+          "purchase": {
+            "minPrice": 9800000,
+            "maxPrice": 10500000
+          },
+          "sale": {
+            "minPrice": 11800000,
+            "maxPrice": 12400000
+          },
+          "grossMarginEstimate": {
+            "disclaimer": "Diferencial de mercado antes de reacondicionamiento, tiempo en patio, financiamiento e impuestos.",
+            "purchaseRange": {
               "minPrice": 9800000,
               "maxPrice": 10500000
             },
-            "sale": {
+            "saleRange": {
               "minPrice": 11800000,
               "maxPrice": 12400000
             },
-            "grossMarginEstimate": {
-              "disclaimer": "Diferencial de mercado antes de reacondicionamiento, tiempo en patio, financiamiento e impuestos.",
-              "purchaseRange": { "minPrice": 9800000, "maxPrice": 10500000 },
-              "saleRange": { "minPrice": 11800000, "maxPrice": 12400000 },
-              "minGrossMargin": 1300000,
-              "minGrossMarginPercent": 10.48,
-              "maxGrossMargin": 2600000,
-              "maxGrossMarginPercent": 20.97,
-              "avgGrossMargin": 1950000,
-              "avgGrossMarginPercent": 16.12
-            },
-            "priceDistribution": {
-              "market": [
-                { "percentile": 10, "price": 9200000 },
-                { "percentile": 20, "price": 9800000 },
-                { "percentile": 25, "price": 10000000 },
-                { "percentile": 30, "price": 10200000 },
-                { "percentile": 40, "price": 10500000 },
-                { "percentile": 50, "price": 11000000 },
-                { "percentile": 60, "price": 11400000 },
-                { "percentile": 70, "price": 11800000 },
-                { "percentile": 75, "price": 12100000 },
-                { "percentile": 80, "price": 12400000 },
-                { "percentile": 90, "price": 13000000 }
-              ],
-              "private": [
-                { "percentile": 10, "price": 9000000 },
-                { "percentile": 20, "price": 9600000 },
-                { "percentile": 25, "price": 9800000 },
-                { "percentile": 30, "price": 10000000 },
-                { "percentile": 40, "price": 10300000 },
-                { "percentile": 50, "price": 10800000 },
-                { "percentile": 60, "price": 11200000 },
-                { "percentile": 70, "price": 11600000 },
-                { "percentile": 75, "price": 11900000 },
-                { "percentile": 80, "price": 12200000 },
-                { "percentile": 90, "price": 12800000 }
-              ],
-              "dealer": [
-                { "percentile": 10, "price": 9400000 },
-                { "percentile": 20, "price": 10000000 },
-                { "percentile": 25, "price": 10200000 },
-                { "percentile": 30, "price": 10400000 },
-                { "percentile": 40, "price": 10700000 },
-                { "percentile": 50, "price": 11200000 },
-                { "percentile": 60, "price": 11600000 },
-                { "percentile": 70, "price": 12000000 },
-                { "percentile": 75, "price": 12300000 },
-                { "percentile": 80, "price": 12600000 },
-                { "percentile": 90, "price": 13200000 }
-              ]
-            },
-            "freshness": {
-              "lastValidLogicalDay": "2026-11-01",
-              "ageDays": 1,
-              "status": "FRESH"
-            },
-            "methodology": {
-              "qualityVersion": "quality-v2",
-              "smoothingVersion": "wh-v1",
-              "algorithmVersion": "2026.1"
-            }
-          }
-        },
-        "comparables": {
-          "schema": "comparables-v1",
-          "status": "AVAILABLE",
-          "data": {
-            "items": [
+            "minGrossMargin": 1300000,
+            "minGrossMarginPercent": 10.48,
+            "maxGrossMargin": 2600000,
+            "maxGrossMarginPercent": 20.97,
+            "avgGrossMargin": 1950000,
+            "avgGrossMarginPercent": 16.12
+          },
+          "priceDistribution": {
+            "market": [
               {
-                "portal": "chileautos",
-                "publicationId": "pub-yaris-101",
-                "url": "https://example.com/autos/pub-yaris-101",
-                "price": 11990000,
-                "year": 2021,
-                "odometer": 48000,
-                "version": "1.5",
-                "canonicalVersionKey": "1.5",
-                "region": "13",
-                "sellerType": "dealer",
-                "firstSeenAt": "2026-10-15T12:00:00Z",
-                "lastSeenAt": "2026-11-01T10:00:00Z",
-                "distant": false,
-                "diff": {
-                  "yearDelta": 0,
-                  "odometerDelta": -2000,
-                  "sameVersion": true,
-                  "sameRegion": true
-                }
+                "percentile": 10,
+                "price": 9200000
               },
               {
-                "portal": "chileautos",
-                "publicationId": "pub-yaris-102",
-                "url": "https://example.com/autos/pub-yaris-102",
-                "price": 11500000,
-                "year": 2020,
-                "odometer": 55000,
-                "version": "1.5",
-                "canonicalVersionKey": "1.5",
-                "region": "05",
-                "sellerType": "private",
-                "firstSeenAt": "2026-10-10T09:30:00Z",
-                "lastSeenAt": "2026-10-28T18:00:00Z",
-                "distant": true,
-                "diff": {
-                  "yearDelta": -1,
-                  "odometerDelta": 5000,
-                  "sameVersion": true,
-                  "sameRegion": false
-                }
-              }
-            ],
-            "model": {
-              "algorithmVersion": "2026.1",
-              "logicalDay": "2026-11-01",
-              "scope": "regional"
-            },
-            "selection": {
-              "candidates": 15,
-              "withinTolerance": 8,
-              "maxResults": 10,
-              "kMin": 3
-            }
-          }
-        },
-        "usage": {
-          "schema": "usage-v1",
-          "status": "AVAILABLE",
-          "data": {
-            "markKey": "toyota",
-            "modelKey": "yaris",
-            "markCanon": "Toyota",
-            "modelCanon": "Yaris",
-            "vehicleAge": 5,
-            "vehicleOdometer": 50000,
-            "series": [
+                "percentile": 20,
+                "price": 9800000
+              },
               {
-                "age": 5,
-                "referenceYear": 2021,
-                "distribution": [
-                  { "percentile": 25, "odometer": 42000 },
-                  { "percentile": 50, "odometer": 52000 },
-                  { "percentile": 75, "odometer": 65000 }
-                ],
-                "synthetic": false,
-                "sampleSize": 45,
-                "sampleSizeRaw": 48,
-                "discardedOutliers": 3,
-                "lowerFence": 15000,
-                "upperFence": 95000
+                "percentile": 25,
+                "price": 10000000
+              },
+              {
+                "percentile": 30,
+                "price": 10200000
+              },
+              {
+                "percentile": 40,
+                "price": 10500000
+              },
+              {
+                "percentile": 50,
+                "price": 11000000
+              },
+              {
+                "percentile": 60,
+                "price": 11400000
+              },
+              {
+                "percentile": 70,
+                "price": 11800000
+              },
+              {
+                "percentile": 75,
+                "price": 12100000
+              },
+              {
+                "percentile": 80,
+                "price": 12400000
+              },
+              {
+                "percentile": 90,
+                "price": 13000000
               }
             ],
-            "source": {
-              "schemaVersion": "usage-curves-v1",
-              "country": "CL",
-              "generatedAt": "2026-11-01T06:00:00Z"
-            },
-            "vehicleAgeComparable": true,
-            "maxComparableAge": 15,
-            "totalSampleSize": 45
+            "private": [
+              {
+                "percentile": 10,
+                "price": 9000000
+              },
+              {
+                "percentile": 20,
+                "price": 9600000
+              },
+              {
+                "percentile": 25,
+                "price": 9800000
+              },
+              {
+                "percentile": 30,
+                "price": 10000000
+              },
+              {
+                "percentile": 40,
+                "price": 10300000
+              },
+              {
+                "percentile": 50,
+                "price": 10800000
+              },
+              {
+                "percentile": 60,
+                "price": 11200000
+              },
+              {
+                "percentile": 70,
+                "price": 11600000
+              },
+              {
+                "percentile": 75,
+                "price": 11900000
+              },
+              {
+                "percentile": 80,
+                "price": 12200000
+              },
+              {
+                "percentile": 90,
+                "price": 12800000
+              }
+            ],
+            "dealer": [
+              {
+                "percentile": 10,
+                "price": 9400000
+              },
+              {
+                "percentile": 20,
+                "price": 10000000
+              },
+              {
+                "percentile": 25,
+                "price": 10200000
+              },
+              {
+                "percentile": 30,
+                "price": 10400000
+              },
+              {
+                "percentile": 40,
+                "price": 10700000
+              },
+              {
+                "percentile": 50,
+                "price": 11200000
+              },
+              {
+                "percentile": 60,
+                "price": 11600000
+              },
+              {
+                "percentile": 70,
+                "price": 12000000
+              },
+              {
+                "percentile": 75,
+                "price": 12300000
+              },
+              {
+                "percentile": 80,
+                "price": 12600000
+              },
+              {
+                "percentile": 90,
+                "price": 13200000
+              }
+            ]
+          },
+          "freshness": {
+            "lastValidLogicalDay": "2026-11-01",
+            "ageDays": 1,
+            "status": "FRESH"
+          },
+          "methodology": {
+            "qualityVersion": "quality-v2",
+            "smoothingVersion": "wh-v1",
+            "algorithmVersion": "2026.1"
           }
+        }
+      },
+      "comparables": {
+        "schema": "comparables-v1",
+        "status": "AVAILABLE",
+        "data": {
+          "items": [
+            {
+              "portal": "chileautos",
+              "publicationId": "pub-yaris-101",
+              "url": "https://example.com/autos/pub-yaris-101",
+              "price": 11990000,
+              "year": 2021,
+              "odometer": 48000,
+              "version": "1.5",
+              "canonicalVersionKey": "1.5",
+              "region": "13",
+              "sellerType": "dealer",
+              "firstSeenAt": "2026-10-15T12:00:00Z",
+              "lastSeenAt": "2026-11-01T10:00:00Z",
+              "distant": false,
+              "diff": {
+                "yearDelta": 0,
+                "odometerDelta": -2000,
+                "sameVersion": true,
+                "sameRegion": true
+              }
+            },
+            {
+              "portal": "chileautos",
+              "publicationId": "pub-yaris-102",
+              "url": "https://example.com/autos/pub-yaris-102",
+              "price": 11500000,
+              "year": 2020,
+              "odometer": 55000,
+              "version": "1.5",
+              "canonicalVersionKey": "1.5",
+              "region": "05",
+              "sellerType": "private",
+              "firstSeenAt": "2026-10-10T09:30:00Z",
+              "lastSeenAt": "2026-10-28T18:00:00Z",
+              "distant": true,
+              "diff": {
+                "yearDelta": -1,
+                "odometerDelta": 5000,
+                "sameVersion": true,
+                "sameRegion": false
+              }
+            }
+          ],
+          "model": {
+            "algorithmVersion": "2026.1",
+            "logicalDay": "2026-11-01",
+            "scope": "regional"
+          },
+          "selection": {
+            "candidates": 15,
+            "withinTolerance": 8,
+            "maxResults": 10,
+            "kMin": 3
+          }
+        }
+      },
+      "usage": {
+        "schema": "usage-v1",
+        "status": "AVAILABLE",
+        "data": {
+          "markKey": "toyota",
+          "modelKey": "yaris",
+          "markCanon": "Toyota",
+          "modelCanon": "Yaris",
+          "vehicleAge": 5,
+          "vehicleOdometer": 50000,
+          "series": [
+            {
+              "age": 5,
+              "referenceYear": 2021,
+              "distribution": [
+                {
+                  "percentile": 25,
+                  "odometer": 42000
+                },
+                {
+                  "percentile": 50,
+                  "odometer": 52000
+                },
+                {
+                  "percentile": 75,
+                  "odometer": 65000
+                }
+              ],
+              "synthetic": false,
+              "sampleSize": 45,
+              "sampleSizeRaw": 48,
+              "discardedOutliers": 3,
+              "lowerFence": 15000,
+              "upperFence": 95000
+            }
+          ],
+          "source": {
+            "schemaVersion": "usage-curves-v1",
+            "country": "CL",
+            "generatedAt": "2026-11-01T06:00:00Z"
+          },
+          "vehicleAgeComparable": true,
+          "maxComparableAge": 15,
+          "totalSampleSize": 45
         }
       }
     }
@@ -977,6 +1097,21 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
 
 ---
 
+## Migración de 3.x a 4.0
+
+La versión 4.0 alinea los tipos con lo que la API entrega. Los cambios incompatibles son:
+
+| En 3.x | En 4.0 |
+|---|---|
+| `order.result.data.sections`, `order.result.data.vehicle`, `order.result.data.resolution` | `order.result.sections`, `order.result.vehicle`, `order.result.resolution` (el resultado se entrega directamente en `order.result`; el tipo `OrderResultData` ya no existe) |
+| `resolution.fields.odometer` (a nivel de pedido y en `catalog.resolveVehicle`) | `resolution.fields.odometerKm` (obligatorio) |
+| `order.result.resolution` con el tipo `Resolution` | `order.result.resolution` con el tipo `ResultResolution`: el kilometraje va en `fields.odometer` y no incluye `versionConfidence` ni `versionBasis` (estos viajan en `order.resolution`) |
+| `OrderStatus.pollAfterMs` | Eliminado: la consulta de estado no lo informa; el intervalo sugerido llega solo en la aceptación (`OrderAcceptance.pollAfterMs`) |
+| Secciones `listingAnalysis` y `priceHistory` | Eliminadas: el producto de tasación entrega `price`, `comparables` y `usage`. Una sección futura sigue accesible por la firma de índice abierta de `ReportSections` |
+| `OrderResultVehicle.versionResolution` obligatorio | Opcional |
+
+Además, `versionConfidence` admite `EXACT` y `versionBasis` admite `MOST_COMMON`.
+
 ## Migración de 2.x a 3.0
 
 La versión 3.0 del SDK actualiza el formato del resultado de tasación desde el esquema monolítico (`general-price-result-v1`) hacia una arquitectura desacoplada de secciones modulares (`report-result-v2`).
@@ -984,7 +1119,7 @@ La versión 3.0 del SDK actualiza el formato del resultado de tasación desde el
 ### 1. Principales Cambios de Arquitectura
 
 - **Curva única de mercado:** La compra (P20–P40) y la venta (P70–P80) se calculan sobre una sola distribución de mercado, en lugar de contrastar particulares contra automotoras. Las distribuciones particulares y automotoras se mantienen únicamente como referencia visual.
-- **Secciones modulares con ciclo de vida propio:** Los datos residen bajo `order.result.data.sections`. Cada sección declara su propio estado (`AVAILABLE`, `UNAVAILABLE`, `FAILED`) y `data` se omite si no se generó.
+- **Secciones modulares con ciclo de vida propio:** Los datos residen bajo `order.result.sections`. Cada sección declara su propio estado (`AVAILABLE`, `UNAVAILABLE`, `FAILED`) y `data` se omite si no se generó.
 - **Sin unidades en nombres:** De acuerdo a las convenciones estándar, montos y kilometrajes se exponen como números sin unidades en el nombre (ej: `odometer` y `price`, en lugar de `odometerKm` o `priceCLP`).
 - **Margen bruto descriptivo:** `grossMarginEstimate` expone rangos de compra, rangos de venta, utilidades monetarias y porcentajes, sin exponer percentiles internos.
 
@@ -993,13 +1128,13 @@ La versión 3.0 del SDK actualiza el formato del resultado de tasación desde el
 | Propiedad en SDK 2.x (`general-price-result-v1`) | Equivalente en SDK 3.0 (`report-result-v2`) |
 |---|---|
 | `order.result.schemaVersion === "general-price-result-v1"` | `order.result.schemaVersion === "report-result-v2"` |
-| `order.result.data.marketContext.*` | `order.result.data.sections.price.data.marketContext.*` |
-| `order.result.data.marketContext.odometerKm` | `order.result.data.sections.price.data.marketContext.odometer` (y `resolution.fields.odometer.value`) |
-| `order.result.data.purchase` / `data.sale` | `order.result.data.sections.price.data.purchase` / `sale` (como rangos `{minPrice, maxPrice}`) |
-| `order.result.data.grossMarginEstimate` | `order.result.data.sections.price.data.grossMarginEstimate` |
-| `order.result.data.freshness` | `order.result.data.sections.price.data.freshness` |
-| `order.result.data.methodology` | `order.result.data.sections.price.data.methodology` |
-| `order.result.data.comparables.items` | `order.result.data.sections.comparables.data.items` |
+| `order.result.data.marketContext.*` | `order.result.sections.price.data.marketContext.*` |
+| `order.result.data.marketContext.odometerKm` | `order.result.sections.price.data.marketContext.odometer` (y `resolution.fields.odometer.value`) |
+| `order.result.data.purchase` / `data.sale` | `order.result.sections.price.data.purchase` / `sale` (como rangos `{minPrice, maxPrice}`) |
+| `order.result.data.grossMarginEstimate` | `order.result.sections.price.data.grossMarginEstimate` |
+| `order.result.data.freshness` | `order.result.sections.price.data.freshness` |
+| `order.result.data.methodology` | `order.result.sections.price.data.methodology` |
+| `order.result.data.comparables.items` | `order.result.sections.comparables.data.items` |
 | `comparables.availability` | Pasa al `status` de la sección (`AVAILABLE`, `UNAVAILABLE`, `FAILED`) |
 | `item.priceCLP` | `item.price` (en CLP) |
 | `item.odometerKm` | `item.odometer` (en km) |
