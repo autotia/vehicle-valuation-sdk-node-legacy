@@ -171,7 +171,7 @@ export class CatalogResource {
    *
    * @param input Parámetros de inferencia que incluyen marca, modelo, año y texto libre descriptivo.
    * @param options Opciones de llamada HTTP.
-   * @returns Promesa con el resultado de inferencia ('matched', 'no_evidence', 'no_match') y versiones ordenadas.
+   * @returns Promesa con el resultado de inferencia ('matched' o 'no_match') y versiones ordenadas.
    * @throws {BadRequestError} Si los parámetros de solicitud son inválidos (HTTP 400).
    * @throws {NotFoundError} Si no se encuentra el año para el modelo con código year_not_found (HTTP 404).
    * @throws {AuthenticationError} Si las credenciales son inválidas (HTTP 401).
@@ -233,7 +233,7 @@ export class CatalogResource {
    *   year: 2020,
    *   search: "Yaris 1.5 sedan",
    * });
-   * console.log(`Resuelto como ${resolved.model} ${resolved.version} (certeza: ${resolved.resolution.certainty})`);
+   * console.log(`Resuelto como ${resolved.model} ${resolved.version} (confianza: ${resolved.resolution.versionConfidence})`);
    * ```
    */
   public resolveVehicle(

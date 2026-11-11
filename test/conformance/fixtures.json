@@ -567,8 +567,6 @@
                   "catalogVersion": "cat-2026-v1",
                   "sourceCatalogVersion": "cat-2026-v1",
                   "referenceYear": 2026,
-                  "certainty": "EXACT",
-                  "topMargin": 0.05,
                   "fields": {
                     "model": {
                       "value": "Yaris",
@@ -590,8 +588,7 @@
                   "selected": {
                     "model": "Yaris",
                     "version": "1.5",
-                    "confidence": 95,
-                    "score": 98.5
+                    "confidence": 95
                   },
                   "alternatives": []
                 },
@@ -946,8 +943,6 @@
               "catalogVersion": "cat-2026-v1",
               "sourceCatalogVersion": "cat-2026-v1",
               "referenceYear": 2026,
-              "certainty": "EXACT",
-              "topMargin": 0.05,
               "fields": {
                 "model": {
                   "value": "Yaris",
@@ -969,8 +964,7 @@
               "selected": {
                 "model": "Yaris",
                 "version": "1.5",
-                "confidence": 95,
-                "score": 98.5
+                "confidence": 95
               },
               "alternatives": []
             },
@@ -1421,7 +1415,9 @@
                   "version": "3.6 L LT 4X2 COUPE NB MT 2P",
                   "confidence": 22
                 }
-              ]
+              ],
+              "versionConfidence": "MEDIUM",
+              "versionBasis": "LOWEST_PRICE"
             },
             "apiRequestId": "req-inf-matched",
             "executionId": "exec-inf-matched",
@@ -1444,7 +1440,9 @@
               "version": "3.6 L LT 4X2 COUPE NB MT 2P",
               "confidence": 22
             }
-          ]
+          ],
+          "versionConfidence": "MEDIUM",
+          "versionBasis": "LOWEST_PRICE"
         },
         "retry": {
           "retryable": false,
@@ -1621,8 +1619,6 @@
                   "catalogVersion": "cat-2026-v1",
                   "sourceCatalogVersion": "cat-2026-v1",
                   "referenceYear": 2026,
-                  "certainty": "EXACT",
-                  "topMargin": 0.05,
                   "fields": {
                     "model": {
                       "value": "Yaris",
@@ -1644,8 +1640,7 @@
                   "selected": {
                     "model": "Yaris",
                     "version": "1.5",
-                    "confidence": 95,
-                    "score": 98.5
+                    "confidence": 95
                   },
                   "alternatives": []
                 },
@@ -2000,8 +1995,6 @@
               "catalogVersion": "cat-2026-v1",
               "sourceCatalogVersion": "cat-2026-v1",
               "referenceYear": 2026,
-              "certainty": "EXACT",
-              "topMargin": 0.05,
               "fields": {
                 "model": {
                   "value": "Yaris",
@@ -2023,8 +2016,7 @@
               "selected": {
                 "model": "Yaris",
                 "version": "1.5",
-                "confidence": 95,
-                "score": 98.5
+                "confidence": 95
               },
               "alternatives": []
             },
@@ -2390,8 +2382,6 @@
                   "catalogVersion": "cat-2026-v1",
                   "sourceCatalogVersion": "cat-2026-v1",
                   "referenceYear": 2026,
-                  "certainty": "EXACT",
-                  "topMargin": 0.05,
                   "fields": {
                     "model": {
                       "value": "Yaris",
@@ -2413,8 +2403,7 @@
                   "selected": {
                     "model": "Yaris",
                     "version": "1.5",
-                    "confidence": 95,
-                    "score": 98.5
+                    "confidence": 95
                   },
                   "alternatives": []
                 },
@@ -2727,8 +2716,7 @@
                     "schema": "custom-v1",
                     "status": "AVAILABLE",
                     "data": {
-                      "customField": "valor-personalizado",
-                      "score": 99
+                      "customField": "valor-personalizado"
                     }
                   }
                 }
@@ -2777,8 +2765,6 @@
               "catalogVersion": "cat-2026-v1",
               "sourceCatalogVersion": "cat-2026-v1",
               "referenceYear": 2026,
-              "certainty": "EXACT",
-              "topMargin": 0.05,
               "fields": {
                 "model": {
                   "value": "Yaris",
@@ -2800,8 +2786,7 @@
               "selected": {
                 "model": "Yaris",
                 "version": "1.5",
-                "confidence": 95,
-                "score": 98.5
+                "confidence": 95
               },
               "alternatives": []
             },
@@ -3114,8 +3099,7 @@
                 "schema": "custom-v1",
                 "status": "AVAILABLE",
                 "data": {
-                  "customField": "valor-personalizado",
-                  "score": 99
+                  "customField": "valor-personalizado"
                 }
               }
             }
@@ -3175,8 +3159,6 @@
                   "catalogVersion": "cat-2026-v1",
                   "sourceCatalogVersion": "cat-2026-v1",
                   "referenceYear": 2026,
-                  "certainty": "EXACT",
-                  "topMargin": 0.05,
                   "fields": {
                     "model": {
                       "value": "Yaris",
@@ -3198,8 +3180,7 @@
                   "selected": {
                     "model": "Yaris",
                     "version": "1.5",
-                    "confidence": 95,
-                    "score": 98.5
+                    "confidence": 95
                   },
                   "alternatives": []
                 },
@@ -3454,8 +3435,6 @@
               "catalogVersion": "cat-2026-v1",
               "sourceCatalogVersion": "cat-2026-v1",
               "referenceYear": 2026,
-              "certainty": "EXACT",
-              "topMargin": 0.05,
               "fields": {
                 "model": {
                   "value": "Yaris",
@@ -3477,8 +3456,7 @@
               "selected": {
                 "model": "Yaris",
                 "version": "1.5",
-                "confidence": 95,
-                "score": 98.5
+                "confidence": 95
               },
               "alternatives": []
             },

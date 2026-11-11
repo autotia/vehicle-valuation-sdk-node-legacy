@@ -708,7 +708,7 @@ components:
         failure:
           $ref: '#/components/schemas/Failure'
         resolution:
-          $ref: '#/components/schemas/Resolution'
+          $ref: '#/components/schemas/OrderStatusResolution'
     StatusEnvelope:
       allOf:
         - $ref: '#/components/schemas/EnvelopeMeta'
@@ -1250,7 +1250,7 @@ components:
     InferredTrim:
       type: object
       additionalProperties: true
-      required: [version, confidence, score]
+      required: [version, confidence]
       properties:
         version:
           type: string
@@ -1260,36 +1260,37 @@ components:
           minimum: 0
           maximum: 100
           description: Preferencia relativa entre candidatos (0 a 100, suma 100 sobre el conjunto completo).
-        score:
-          type: number
-          format: double
-          minimum: 0
-          maximum: 100
-          description: Preferencia relativa normalizada, no es probabilidad de acierto.
     VersionInferenceResult:
       type: object
       additionalProperties: true
-      required: [catalogVersion, outcome, totalCandidates, topMargin, versions]
+      required: [catalogVersion, outcome, totalCandidates, versions]
+      oneOf:
+        - required: [outcome, versionConfidence, versionBasis]
+          properties:
+            outcome: { type: string, enum: [matched] }
+        - required: [outcome]
+          properties:
+            outcome: { type: string, enum: [no_match] }
+          not:
+            anyOf:
+              - required: [versionConfidence]
+              - required: [versionBasis]
       properties:
         catalogVersion:
           type: string
           description: Hash o identificador de versión del catálogo consultado.
         outcome:
           type: string
-          enum: [matched, no_evidence, no_match]
+          enum: [matched, no_match]
           description: Resultado del análisis sobre el texto proporcionado.
         totalCandidates:
           type: integer
           description: Total de candidatos compatibles antes de limitar la lista devuelta.
-        topMargin:
-          type: number
-          format: double
-          description: Diferencia entre score del primer y segundo candidato antes de truncar.
         versionConfidence:
           type: string
           enum: [EXACT, HIGH, MEDIUM, LOW]
           description: >-
-            Nivel de confianza en la identificación de la versión seleccionada.
+            Obligatorio cuando outcome es matched. Nivel de confianza en la identificación de la versión seleccionada.
             EXACT indica que la versión llegó explícita y existe en el catálogo;
             HIGH, que el texto deja una sola versión;
             MEDIUM, que el texto aporta al menos un dato mecánico y se eligió la versión base más común
@@ -1297,17 +1298,17 @@ components:
             relevante de los avisos;
             LOW, la misma elección pero con poca información o pocos datos de mercado.
             El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
-            Se omite con outcome no_match o si no está disponible.
+            Se omite con outcome no_match.
         versionBasis:
           type: string
           enum: [TEXT, MOST_COMMON, LOWEST_PRICE, SIMPLEST]
           description: >-
-            Criterio aplicado para la selección de la versión.
+            Obligatorio cuando outcome es matched. Criterio aplicado para la selección de la versión.
             TEXT indica selección por evidencia textual o especificación directa;
             MOST_COMMON, versión con más avisos del mercado;
             LOWEST_PRICE, desempate por menor precio mediano de mercado;
             SIMPLEST, desempate por versión base o más simple del catálogo.
-            Se omite con outcome no_match o si no está disponible.
+            Se omite con outcome no_match.
         versions:
           type: array
           items:
@@ -1367,20 +1368,18 @@ components:
     Resolution:
       type: object
       additionalProperties: true
-      required: [catalogVersion, sourceCatalogVersion, referenceYear, certainty, topMargin, fields, selected, alternatives]
+      required: [catalogVersion, sourceCatalogVersion, referenceYear, versionConfidence, versionBasis, fields, selected, alternatives]
       properties:
         catalogVersion: { type: string }
         sourceCatalogVersion: { type: string }
         usageCurveVersion: { type: string }
         referenceYear: { type: integer }
         search: { type: string }
-        certainty: { type: string, enum: [EXACT, HIGH, LOW] }
-        topMargin: { type: number, format: double }
         versionConfidence:
           type: string
           enum: [EXACT, HIGH, MEDIUM, LOW]
           description: >-
-            Nivel de confianza en la identificación de la versión seleccionada.
+            Confianza en la versión elegida; es obligatoria en una resolución exitosa.
             EXACT indica que la versión llegó explícita y existe en el catálogo;
             HIGH, que el texto deja una sola versión;
             MEDIUM, que el texto aporta al menos un dato mecánico y se eligió la versión base más común
@@ -1388,17 +1387,62 @@ components:
             relevante de los avisos;
             LOW, la misma elección pero con poca información o pocos datos de mercado.
             El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
-            Se omite cuando no hay coincidencia o si no está disponible.
         versionBasis:
           type: string
           enum: [TEXT, MOST_COMMON, LOWEST_PRICE, SIMPLEST]
           description: >-
-            Criterio aplicado para la selección de la versión.
+            Base de selección de la versión; es obligatoria en una resolución exitosa.
             TEXT indica selección por evidencia textual o especificación directa;
             MOST_COMMON, versión con más avisos del mercado;
             LOWEST_PRICE, desempate por menor precio mediano de mercado;
             SIMPLEST, desempate por versión base o más simple del catálogo.
-            Se omite cuando no hay coincidencia o si no está disponible.
+        fields:
+          type: object
+          additionalProperties: true
+          required: [model, version, region, odometerKm]
+          properties:
+            model: { $ref: '#/components/schemas/ResolvedStringField' }
+            version: { $ref: '#/components/schemas/ResolvedStringField' }
+            region: { $ref: '#/components/schemas/ResolvedStringField' }
+            odometerKm:
+              $ref: '#/components/schemas/ResolvedNumberField'
+              description: Kilometraje resuelto del vehículo en kilómetros.
+        selected:
+          $ref: '#/components/schemas/ResolutionCandidate'
+        alternatives:
+          type: array
+          items: { $ref: '#/components/schemas/ResolutionCandidate' }
+    OrderStatusResolution:
+      type: object
+      additionalProperties: true
+      required: [catalogVersion, sourceCatalogVersion, referenceYear, fields, selected, alternatives]
+      properties:
+        catalogVersion: { type: string }
+        sourceCatalogVersion: { type: string }
+        usageCurveVersion: { type: string }
+        referenceYear: { type: integer }
+        search: { type: string }
+        versionConfidence:
+          type: string
+          enum: [EXACT, HIGH, MEDIUM, LOW]
+          description: >-
+            Confianza en la versión; se omite en pedidos antiguos que no persistieron este dato.
+            EXACT indica que la versión llegó explícita y existe en el catálogo;
+            HIGH, que el texto deja una sola versión;
+            MEDIUM, que el texto aporta al menos un dato mecánico y se eligió la versión base más común
+            del mercado (o la más barata entre las igual de comunes), que además representa una parte
+            relevante de los avisos;
+            LOW, la misma elección pero con poca información o pocos datos de mercado.
+            El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
+        versionBasis:
+          type: string
+          enum: [TEXT, MOST_COMMON, LOWEST_PRICE, SIMPLEST]
+          description: >-
+            Base de selección; se omite en pedidos antiguos que no persistieron este dato.
+            TEXT indica selección por evidencia textual o especificación directa;
+            MOST_COMMON, versión con más avisos del mercado;
+            LOWEST_PRICE, desempate por menor precio mediano de mercado;
+            SIMPLEST, desempate por versión base o más simple del catálogo.
         fields:
           type: object
           additionalProperties: true
@@ -1421,15 +1465,13 @@ components:
         Resolución incluida dentro del resultado (`result.resolution`). El kilometraje va en
         `fields.odometer` y no incluye `versionConfidence` ni `versionBasis`.
       additionalProperties: true
-      required: [catalogVersion, sourceCatalogVersion, referenceYear, certainty, topMargin, fields, selected, alternatives]
+      required: [catalogVersion, sourceCatalogVersion, referenceYear, fields, selected, alternatives]
       properties:
         catalogVersion: { type: string }
         sourceCatalogVersion: { type: string }
         usageCurveVersion: { type: string }
         referenceYear: { type: integer }
         search: { type: string }
-        certainty: { type: string, enum: [EXACT, HIGH, LOW] }
-        topMargin: { type: number, format: double }
         fields:
           type: object
           additionalProperties: true
@@ -1463,12 +1505,11 @@ components:
     ResolutionCandidate:
       type: object
       additionalProperties: true
-      required: [model, version, confidence, score]
+      required: [model, version, confidence]
       properties:
         model: { type: string }
         version: { type: string }
         confidence: { type: integer, minimum: 0, maximum: 100 }
-        score: { type: number, format: double, minimum: 0, maximum: 100 }
     MarkInferenceRequest:
       type: object
       additionalProperties: false
@@ -1479,21 +1520,19 @@ components:
     MarkCandidate:
       type: object
       additionalProperties: true
-      required: [mark, name, confidence, score]
+      required: [mark, name, confidence]
       properties:
         mark: { type: string }
         name: { type: string }
         confidence: { type: integer, minimum: 0, maximum: 100 }
-        score: { type: number, format: double, minimum: 0, maximum: 100 }
     MarkInferenceResult:
       type: object
       additionalProperties: true
-      required: [catalogVersion, outcome, totalCandidates, topMargin, marks]
+      required: [catalogVersion, outcome, totalCandidates, marks]
       properties:
         catalogVersion: { type: string }
         outcome: { type: string, enum: [matched, no_match] }
         totalCandidates: { type: integer }
-        topMargin: { type: number, format: double }
         marks: { type: array, items: { $ref: '#/components/schemas/MarkCandidate' } }
     MarkInferenceEnvelope:
       allOf:
@@ -1514,21 +1553,19 @@ components:
     ModelCandidate:
       type: object
       additionalProperties: true
-      required: [model, name, confidence, score]
+      required: [model, name, confidence]
       properties:
         model: { type: string }
         name: { type: string }
         confidence: { type: integer, minimum: 0, maximum: 100 }
-        score: { type: number, format: double, minimum: 0, maximum: 100 }
     ModelInferenceResult:
       type: object
       additionalProperties: true
-      required: [catalogVersion, outcome, totalCandidates, topMargin, models]
+      required: [catalogVersion, outcome, totalCandidates, models]
       properties:
         catalogVersion: { type: string }
         outcome: { type: string, enum: [matched, no_match] }
         totalCandidates: { type: integer }
-        topMargin: { type: number, format: double }
         models: { type: array, items: { $ref: '#/components/schemas/ModelCandidate' } }
     ModelInferenceEnvelope:
       allOf:

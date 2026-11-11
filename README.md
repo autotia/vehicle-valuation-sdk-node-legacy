@@ -222,7 +222,7 @@ orders.createFromTrimText(
 - `options?: OrderFromTrimTextOptions`:
   ```ts
   interface OrderFromTrimTextOptions extends CallOptions {
-    minConfidence?: number; // Umbral de confianza mínima requerida (0 a 100)
+    minVersionConfidence?: VersionConfidence; // Por defecto "MEDIUM"
   }
   ```
 
@@ -236,7 +236,7 @@ interface OrderFromTrimTextResult {
 ```
 
 **Errores lanzados (`@throws`):**
-- `TrimInferenceError`: Si el texto no aporta evidencia (`no_evidence`), no coincide con ninguna versión (`no_match`), o si la confianza del mejor candidato es inferior a `minConfidence`.
+- `TrimInferenceError`: Si el texto no coincide con ninguna versión (`no_match`) o si `versionConfidence` queda bajo `minVersionConfidence` (por defecto `MEDIUM`).
 - Errores estándar de `orders.create`.
 
 **Ejemplo chileno:**
@@ -252,7 +252,7 @@ try {
     trimText: "1.2 PureTech Allure 5p",
     region: "13",
     odometerKm: 38000,
-  }, { minConfidence: 70 });
+  }, { minVersionConfidence: "MEDIUM" });
 
   console.log("Versión inferida y seleccionada: " + result.selectedVersion);
   console.log("Pedido de tasación creado: " + result.order.orderId);
@@ -512,18 +512,16 @@ interface Resolution {
   usageCurveVersion?: string;
   referenceYear: number;
   search?: string;
-  certainty: "EXACT" | "HIGH" | "LOW";
-  topMargin: number;
-  versionConfidence?: "EXACT" | "HIGH" | "MEDIUM" | "LOW";
-  versionBasis?: "TEXT" | "MOST_COMMON" | "LOWEST_PRICE" | "SIMPLEST";
+  versionConfidence: VersionConfidence;
+  versionBasis: VersionBasis;
   fields: {
     model: { value: string; source: string };
     version: { value: string; source: string };
     region: { value: string; source: string };
     odometerKm: { value: number; source: string };
   };
-  selected: { model: string; version: string; confidence: number; score: number };
-  alternatives: Array<{ model: string; version: string; confidence: number; score: number }>;
+  selected: { model: string; version: string; confidence: number };
+  alternatives: Array<{ model: string; version: string; confidence: number }>;
 }
 ```
 
@@ -533,7 +531,7 @@ const resolution = await client.catalog.resolveVehicle({
   search: "Toyota Yaris 2021 1.5",
   region: "13",
 });
-console.log("Certeza de resolución: " + resolution.certainty, resolution.selected);
+console.log("Confianza de versión: " + resolution.versionConfidence, resolution.selected);
 ```
 
 ---
@@ -607,26 +605,35 @@ interface TrimInferenceRequest {
 
 **Retorno (`TrimInferenceResult`):**
 ```ts
-interface TrimInferenceResult {
-  outcome: "matched" | "no_match" | "no_evidence";
-  versions: Array<{
-    version: string;
-    confidence: number; // 0 a 100
-    score?: number;
-  }>;
-  totalCandidates: number;
-  versionConfidence?: "EXACT" | "HIGH" | "MEDIUM" | "LOW";
-  versionBasis?: "TEXT" | "MOST_COMMON" | "LOWEST_PRICE" | "SIMPLEST";
+type TrimInferenceResult =
+  | {
+      outcome: "matched";
+      versions: [InferredTrim, ...InferredTrim[]];
+      totalCandidates: number;
+      versionConfidence: VersionConfidence;
+      versionBasis: VersionBasis;
+    }
+  | {
+      outcome: "no_match";
+      versions: InferredTrim[];
+      totalCandidates: number;
+      versionConfidence?: never;
+      versionBasis?: never;
+    };
+
+interface InferredTrim {
+  version: string;
+  confidence: number; // 0 a 100
 }
 ```
 
-Los campos `versionConfidence` y `versionBasis` son aditivos y opcionales:
-- `versionConfidence` (`EXACT` | `HIGH` | `MEDIUM` | `LOW`): nivel de confianza en la identificación de la versión seleccionada. El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible.
+`versionConfidence` y `versionBasis` son obligatorios cuando `outcome` es `matched`; se omiten cuando es `no_match`.
+- `versionConfidence` (`EXACT` | `HIGH` | `MEDIUM` | `LOW`): nivel de confianza en la identificación de la versión seleccionada. El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial. Se omite con `outcome: no_match`.
   - `EXACT`: la versión llegó explícita y existe en el catálogo.
   - `HIGH`: el texto deja una sola versión posible.
   - `MEDIUM`: el texto aporta al menos un dato mecánico y se eligió la versión base más común del mercado (o la más barata entre las igual de comunes), que además representa una parte relevante de los avisos.
   - `LOW`: misma elección que `MEDIUM`, pero con poca información en el texto o pocos datos de mercado.
-- `versionBasis` (`TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`): criterio aplicado en la selección (`TEXT` por coincidencia textual o especificación directa, `MOST_COMMON` por ser la versión con más avisos del mercado, `LOWEST_PRICE` por desempate según menor precio de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite cuando no hay coincidencia (`outcome: no_match`) o si no está disponible. Las versiones exclusivas con pocos avisos ya no se eligen por descarte.
+- `versionBasis` (`TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`): criterio aplicado en la selección (`TEXT` por coincidencia textual o especificación directa, `MOST_COMMON` por ser la versión con más avisos del mercado, `LOWEST_PRICE` por desempate según menor precio de mercado, `SIMPLEST` por desempate según versión base o más simple del catálogo). Se omite con `outcome: no_match`. Las versiones exclusivas con pocos avisos ya no se eligen por descarte.
 ```
 
 **Ejemplo:**
@@ -758,8 +765,6 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
       "catalogVersion": "cat-2026-v1",
       "sourceCatalogVersion": "cat-2026-v1",
       "referenceYear": 2026,
-      "certainty": "EXACT",
-      "topMargin": 0.05,
       "fields": {
         "model": {
           "value": "Yaris",
@@ -782,7 +787,6 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
         "model": "Yaris",
         "version": "1.5",
         "confidence": 95,
-        "score": 98.5
       },
       "alternatives": []
     },
@@ -1096,6 +1100,20 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
 ```
 
 ---
+
+## Migración de 4.x a 5.0
+
+La versión 5.0 concentra la confianza de selección en `versionConfidence` y `versionBasis`. Los cambios incompatibles son:
+
+| En 4.x | En 5.0 |
+|---|---|
+| `certainty`, `topMargin` y `score` en resolución, inferencias y candidatos | Eliminados de los tipos públicos y de las respuestas documentadas; usa `versionConfidence`, `versionBasis` y `confidence` de las alternativas |
+| `TrimInferenceResult.outcome` incluye `no_evidence` | Solo `matched` o `no_match`; un resultado elegido por el mercado es `matched` y su confianza explica la certeza |
+| `versionConfidence` y `versionBasis` opcionales en un resultado `matched` | Obligatorios cuando `outcome` es `matched`; ausentes con `no_match` |
+| `createFromTrimText` acepta `minConfidence` numérico | Se elimina; usa `minVersionConfidence` (`EXACT` > `HIGH` > `MEDIUM` > `LOW`), cuyo valor por defecto es `MEDIUM` |
+| `order.result.resolution` permite `certainty` y `topMargin` | `ResultResolution` ya no tipa esos campos; la confianza de versión se consulta en `order.resolution` |
+
+`createFromTrimText` ahora acepta resultados `matched` con confianza `MEDIUM` por defecto. Lanza `TrimInferenceError` solo para `no_match` o si `versionConfidence` queda bajo el mínimo configurado.
 
 ## Migración de 3.x a 4.0
 

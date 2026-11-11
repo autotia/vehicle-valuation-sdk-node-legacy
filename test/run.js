@@ -703,6 +703,8 @@ test("catalog.inferTrim: envía cuerpo JSON correcto y recibe resultado", async 
         return json(200, {
           catalogVersion: "cat-test-1",
           outcome: "matched",
+          versionConfidence: "MEDIUM",
+          versionBasis: "LOWEST_PRICE",
           totalCandidates: 1,
           versions: [{ version: "3.6 L RS MT", confidence: 100 }],
         });
@@ -741,15 +743,14 @@ test("catalog.inferTrim: deserializa versionConfidence y versionBasis cuando est
         return json(200, {
           catalogVersion: "cat-v2",
           outcome: "matched",
+
           totalCandidates: 4,
-          topMargin: 0,
           versionConfidence: "MEDIUM",
           versionBasis: "LOWEST_PRICE",
           versions: [
             {
               version: "1.2 PURETECH ACTIVE PACK 75 4X2 MT 5P",
               confidence: 25,
-              score: 75,
             },
           ],
         });
@@ -785,14 +786,13 @@ test("catalog.inferTrim: acepta los valores EXACT y MOST_COMMON", async () => {
             {
               catalogVersion: "cat-v2",
               outcome: "matched",
+              versionConfidence: "MEDIUM",
+              versionBasis: "LOWEST_PRICE",
               totalCandidates: 1,
-              topMargin: 0,
             },
             expected,
             {
-              versions: [
-                { version: "1.2 PURETECH", confidence: 100, score: 90 },
-              ],
+              versions: [{ version: "1.2 PURETECH", confidence: 100 }],
             },
           ),
         );
@@ -864,6 +864,8 @@ test("orders.createFromTrimText: matched crea pedido con versions[0].version", a
         return json(200, {
           catalogVersion: "cat-v1",
           outcome: "matched",
+          versionConfidence: "MEDIUM",
+          versionBasis: "LOWEST_PRICE",
           totalCandidates: 2,
           versions: [
             { version: "1.5 GL MT", confidence: 85 },
@@ -906,47 +908,59 @@ test("orders.createFromTrimText: matched crea pedido con versions[0].version", a
   assert.strictEqual(res.inference.outcome, "matched");
 });
 
-test("orders.createFromTrimText: no_evidence lanza TrimInferenceError sin llamar a orders.create", async () => {
+test("orders.createFromTrimText: Peugeot 208 MEDIUM pasa con el valor por defecto", async () => {
   let orderCalls = 0;
+  let orderBody = null;
   const transport = {
     request: async (request) => {
       if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
       if (request.url.indexOf("/v1/version-inference") !== -1) {
         return json(200, {
-          catalogVersion: "cat-v1",
-          outcome: "no_evidence",
-          totalCandidates: 2,
+          catalogVersion: "cat-v2",
+          outcome: "matched",
+          totalCandidates: 9,
+          versionConfidence: "MEDIUM",
+          versionBasis: "LOWEST_PRICE",
           versions: [
-            { version: "1.5 GL MT", confidence: 50 },
-            { version: "1.5 XLi MT", confidence: 50 },
+            {
+              version: "1.2 PURETECH ACTIVE PACK 75 4X2 MT 5P",
+              confidence: 14,
+            },
           ],
         });
       }
       if (request.url.indexOf("/v1/orders") !== -1) {
-        orderCalls += 1;
-        return json(202, { orderId: "should-not-be-called" });
+        orderCalls++;
+        orderBody = JSON.parse(request.body);
+        return json(202, {
+          orderId: "ordb2b_208",
+          reportType: "general-price",
+          status: "PENDING",
+          pollAfterMs: 2000,
+        });
       }
       throw new Error(`Ruta no esperada: ${request.url}`);
     },
   };
-  const client = clientWith(transport);
-  await assert.rejects(
-    client.orders.createFromTrimText({
-      reportType: "general-price",
-      mark: "Toyota",
-      model: "Yaris",
-      year: 2020,
-      trimText: "auto azul",
-      odometerKm: 45000,
-    }),
-    (err) => {
-      assert.strictEqual(err instanceof sdk.TrimInferenceError, true);
-      assert.strictEqual(err.outcome, "no_evidence");
-      assert.strictEqual(err.versions.length, 2);
-      return true;
-    },
+  const result = await clientWith(transport).orders.createFromTrimText({
+    reportType: "general-price",
+    mark: "PEUGEOT",
+    model: "208",
+    year: 2024,
+    trimText: "208 PURETECH 4X2 1.2",
+    odometerKm: 50000,
+  });
+  assert.strictEqual(result.inference.versionConfidence, "MEDIUM");
+  assert.strictEqual(result.inference.versionBasis, "LOWEST_PRICE");
+  assert.strictEqual(
+    result.selectedVersion,
+    "1.2 PURETECH ACTIVE PACK 75 4X2 MT 5P",
   );
-  assert.strictEqual(orderCalls, 0);
+  assert.strictEqual(
+    orderBody.version,
+    "1.2 PURETECH ACTIVE PACK 75 4X2 MT 5P",
+  );
+  assert.strictEqual(orderCalls, 1);
 });
 
 test("orders.createFromTrimText: no_match lanza TrimInferenceError sin llamar a orders.create", async () => {
@@ -989,7 +1003,7 @@ test("orders.createFromTrimText: no_match lanza TrimInferenceError sin llamar a 
   assert.strictEqual(orderCalls, 0);
 });
 
-test("orders.createFromTrimText: minConfidence bajo umbral lanza TrimInferenceError", async () => {
+test("orders.createFromTrimText: LOW bajo el mínimo por defecto lanza TrimInferenceError", async () => {
   let orderCalls = 0;
   const transport = {
     request: async (request) => {
@@ -998,6 +1012,8 @@ test("orders.createFromTrimText: minConfidence bajo umbral lanza TrimInferenceEr
         return json(200, {
           catalogVersion: "cat-v1",
           outcome: "matched",
+          versionConfidence: "LOW",
+          versionBasis: "MOST_COMMON",
           totalCandidates: 2,
           versions: [
             { version: "1.5 GL MT", confidence: 55 },
@@ -1014,17 +1030,14 @@ test("orders.createFromTrimText: minConfidence bajo umbral lanza TrimInferenceEr
   };
   const client = clientWith(transport);
   await assert.rejects(
-    client.orders.createFromTrimText(
-      {
-        reportType: "general-price",
-        mark: "Toyota",
-        model: "Yaris",
-        year: 2020,
-        trimText: "1.5 mecanico",
-        odometerKm: 45000,
-      },
-      { minConfidence: 70 },
-    ),
+    client.orders.createFromTrimText({
+      reportType: "general-price",
+      mark: "Toyota",
+      model: "Yaris",
+      year: 2020,
+      trimText: "1.5 mecanico",
+      odometerKm: 45000,
+    }),
     (err) => {
       assert.strictEqual(err instanceof sdk.TrimInferenceError, true);
       assert.strictEqual(err.outcome, "matched");
@@ -1033,6 +1046,37 @@ test("orders.createFromTrimText: minConfidence bajo umbral lanza TrimInferenceEr
     },
   );
   assert.strictEqual(orderCalls, 0);
+});
+
+test("orders.createFromTrimText: minVersionConfidence LOW acepta LOW", async () => {
+  const transport = {
+    request: async (request) => {
+      if (request.url.indexOf("/oauth2/token") !== -1) return tokenResponse();
+      if (request.url.indexOf("/v1/version-inference") !== -1)
+        return json(200, {
+          catalogVersion: "cat-v1",
+          outcome: "matched",
+          totalCandidates: 1,
+          versionConfidence: "LOW",
+          versionBasis: "MOST_COMMON",
+          versions: [{ version: "1.5 GL MT", confidence: 100 }],
+        });
+      if (request.url.indexOf("/v1/orders") !== -1)
+        return json(202, { orderId: "ordb2b_low" });
+      throw new Error(`Ruta no esperada: ${request.url}`);
+    },
+  };
+  const result = await clientWith(transport).orders.createFromTrimText(
+    {
+      reportType: "general-price",
+      mark: "Toyota",
+      model: "Yaris",
+      year: 2020,
+      trimText: "1.5",
+    },
+    { minVersionConfidence: "LOW" },
+  );
+  assert.strictEqual(result.inference.versionConfidence, "LOW");
 });
 
 test("orders.createFromTrimText: propaga Idempotency-Key solo a orders.create", async () => {
@@ -1046,6 +1090,8 @@ test("orders.createFromTrimText: propaga Idempotency-Key solo a orders.create", 
         return json(200, {
           catalogVersion: "cat-v1",
           outcome: "matched",
+          versionConfidence: "MEDIUM",
+          versionBasis: "LOWEST_PRICE",
           totalCandidates: 1,
           versions: [{ version: "1.5 GL MT", confidence: 100 }],
         });

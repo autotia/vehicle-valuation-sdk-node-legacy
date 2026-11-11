@@ -1,8 +1,13 @@
 # Registro de cambios
 
-## [4.0.0] - Unreleased
+## [5.0.0] - Unreleased
 
-Versión mayor: los tipos y el mapeo del SDK se alinean con lo que la API emite realmente. No se conservan alias ni campos obsoletos.
+Versión mayor: una sola medida pública de confianza de versión y helper basado en niveles cualitativos. No se conservan alias ni compatibilidad con opciones retiradas.
+
+- **Cambio incompatible:** se eliminan `certainty`, `ResolutionCertainty`, `topMargin` y `score` de los tipos de resolución, inferencia y candidatos. En `order.result.resolution`, `ResultResolution` tampoco tipa esos campos.
+- `versionConfidence` y `versionBasis` son obligatorios para resultados `matched` de inferencia y resolución; en pedidos antiguos consultados con `GET`, se permiten omitidos. `TrimInferenceResult.outcome` queda en `matched` | `no_match`.
+- **Cambio incompatible:** `createFromTrimText` elimina `minConfidence` y agrega `minVersionConfidence`, con niveles `EXACT` > `HIGH` > `MEDIUM` > `LOW` y valor por defecto `MEDIUM`.
+- README, OpenAPI y fixtures de conformidad actualizados; se agrega la guía de migración de 4.x a 5.0.
 
 - `versionConfidence` admite el nuevo valor `EXACT` (la versión llegó explícita y existe en el catálogo): `EXACT` | `HIGH` | `MEDIUM` | `LOW`.
 - `versionBasis` admite el nuevo valor `MOST_COMMON` (se eligió la versión con más avisos del mercado): `TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`.
