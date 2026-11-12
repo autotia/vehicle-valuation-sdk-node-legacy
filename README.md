@@ -1107,9 +1107,9 @@ La versión 5.0 concentra la confianza de selección en `versionConfidence` y `v
 
 | En 4.x | En 5.0 |
 |---|---|
-| `resolution.certainty` y el tipo `ResolutionCertainty` | Eliminados: usa `resolution.versionConfidence` (`EXACT`, `HIGH`, `MEDIUM` o `LOW`) y `resolution.versionBasis` |
-| `topMargin` (resolución, inferencia de versión, marca y modelo) | Eliminado: usa `versionConfidence`, y `confidence` de cada candidato para comparar alternativas |
-| `score` en `selected`, `alternatives` y candidatos de inferencia | Eliminado: usa `confidence` |
+| `resolution.certainty` y el tipo `ResolutionCertainty` | Ya no se informan en ninguna respuesta de la API: usa `resolution.versionConfidence` (`EXACT`, `HIGH`, `MEDIUM` o `LOW`) y `resolution.versionBasis` |
+| `topMargin` (resolución, inferencia de versión, marca y modelo) | Ya no se informa en ninguna respuesta de la API: usa `versionConfidence`, y `confidence` de cada candidato para comparar alternativas |
+| `score` en `selected`, `alternatives` y candidatos de inferencia | Ya no se informa en ninguna respuesta de la API: usa `confidence` |
 | `outcome: "no_evidence"` en la inferencia de versión | Eliminado: hoy es `matched`, con `versionConfidence` que indica qué tan confiable es la elección |
 | `versionConfidence` y `versionBasis` opcionales | Obligatorios cuando `outcome` es `matched`; ausentes con `no_match`; opcionales solo en `OrderStatus.resolution` de pedidos antiguos |
 | `createFromTrimText({ minConfidence })` | `createFromTrimText({ minVersionConfidence })`, por defecto `MEDIUM` |
