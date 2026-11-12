@@ -87,7 +87,7 @@ export interface OrderResultVehicle {
   version: string;
   /** Versión canónica del catálogo oficial; puede omitirse si no fue homologada. */
   canonicalVersion?: string | undefined;
-  /** Método de resolución de versión aplicado (por ejemplo 'MATCHED', 'FALLBACK'); se omite si no está disponible. */
+  /** Método de resolución de versión aplicado (por ejemplo 'unique', 'ambiguous', 'unresolved'); se omite si no está disponible. */
   versionResolution?: string | undefined;
   /** Indica si la versión resuelta influyó directamente en el modelo de tasación. */
   versionApplied: boolean;

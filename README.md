@@ -758,7 +758,7 @@ Este es un ejemplo real del resultado devuelto para un pedido del producto B2B (
       "year": 2021,
       "version": "1.5",
       "canonicalVersion": "1.5 XLS",
-      "versionResolution": "MATCHED",
+      "versionResolution": "unique",
       "versionApplied": true
     },
     "resolution": {
@@ -1107,11 +1107,13 @@ La versión 5.0 concentra la confianza de selección en `versionConfidence` y `v
 
 | En 4.x | En 5.0 |
 |---|---|
-| `certainty`, `topMargin` y `score` en resolución, inferencias y candidatos | Eliminados de los tipos públicos y de las respuestas documentadas; usa `versionConfidence`, `versionBasis` y `confidence` de las alternativas |
-| `TrimInferenceResult.outcome` incluye `no_evidence` | Solo `matched` o `no_match`; un resultado elegido por el mercado es `matched` y su confianza explica la certeza |
-| `versionConfidence` y `versionBasis` opcionales en un resultado `matched` | Obligatorios cuando `outcome` es `matched`; ausentes con `no_match` |
-| `createFromTrimText` acepta `minConfidence` numérico | Se elimina; usa `minVersionConfidence` (`EXACT` > `HIGH` > `MEDIUM` > `LOW`), cuyo valor por defecto es `MEDIUM` |
-| `order.result.resolution` permite `certainty` y `topMargin` | `ResultResolution` ya no tipa esos campos; la confianza de versión se consulta en `order.resolution` |
+| `resolution.certainty` y el tipo `ResolutionCertainty` | Eliminados: usa `resolution.versionConfidence` (`EXACT`, `HIGH`, `MEDIUM` o `LOW`) y `resolution.versionBasis` |
+| `topMargin` (resolución, inferencia de versión, marca y modelo) | Eliminado: usa `versionConfidence`, y `confidence` de cada candidato para comparar alternativas |
+| `score` en `selected`, `alternatives` y candidatos de inferencia | Eliminado: usa `confidence` |
+| `outcome: "no_evidence"` en la inferencia de versión | Eliminado: hoy es `matched`, con `versionConfidence` que indica qué tan confiable es la elección |
+| `versionConfidence` y `versionBasis` opcionales | Obligatorios cuando `outcome` es `matched`; ausentes con `no_match`; opcionales solo en `OrderStatus.resolution` de pedidos antiguos |
+| `createFromTrimText({ minConfidence })` | `createFromTrimText({ minVersionConfidence })`, por defecto `MEDIUM` |
+| `order.result.resolution` expone metadatos de confianza de versión | `ResultResolution` no incluye `versionConfidence` ni `versionBasis`; consúltalos en `order.resolution` |
 
 `createFromTrimText` ahora acepta resultados `matched` con confianza `MEDIUM` por defecto. Lanza `TrimInferenceError` solo para `no_match` o si `versionConfidence` queda bajo el mínimo configurado.
 
