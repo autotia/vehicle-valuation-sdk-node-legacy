@@ -21,7 +21,7 @@
             "durationMs": 1,
             "error": {
               "code": "invalid_request",
-              "description": "solicitud inválida"
+              "description": "solicitud inv\u00e1lida"
             }
           }
         }
@@ -428,7 +428,7 @@
           "maxRetries": 2,
           "strategy": "exponential-backoff-with-jitter"
         },
-        "message": "Límite de solicitudes alcanzado."
+        "message": "L\u00edmite de solicitudes alcanzado."
       }
     },
     {
@@ -814,7 +814,9 @@
                             "odometerDelta": -2000,
                             "sameVersion": true,
                             "sameRegion": true
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         },
                         {
                           "portal": "chileautos",
@@ -835,7 +837,9 @@
                             "odometerDelta": 5000,
                             "sameVersion": true,
                             "sameRegion": false
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         }
                       ],
                       "model": {
@@ -1190,7 +1194,9 @@
                         "odometerDelta": -2000,
                         "sameVersion": true,
                         "sameRegion": true
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     },
                     {
                       "portal": "chileautos",
@@ -1211,7 +1217,9 @@
                         "odometerDelta": 5000,
                         "sameVersion": true,
                         "sameRegion": false
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     }
                   ],
                   "model": {
@@ -1343,7 +1351,7 @@
               "status": "FAILED",
               "failure": {
                 "code": "vehicle_not_found",
-                "description": "vehículo no encontrado"
+                "description": "veh\u00edculo no encontrado"
               }
             },
             "apiRequestId": "req-failed",
@@ -1475,7 +1483,7 @@
             "durationMs": 1,
             "error": {
               "code": "invalid_request",
-              "description": "texto libre vacío o fuera de rango"
+              "description": "texto libre vac\u00edo o fuera de rango"
             }
           }
         }
@@ -1515,7 +1523,7 @@
             "durationMs": 1,
             "error": {
               "code": "year_not_found",
-              "description": "año sin versiones en el catálogo"
+              "description": "a\u00f1o sin versiones en el cat\u00e1logo"
             }
           }
         }
@@ -1866,7 +1874,9 @@
                             "odometerDelta": -2000,
                             "sameVersion": true,
                             "sameRegion": true
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         },
                         {
                           "portal": "chileautos",
@@ -1887,7 +1897,9 @@
                             "odometerDelta": 5000,
                             "sameVersion": true,
                             "sameRegion": false
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         }
                       ],
                       "model": {
@@ -2242,7 +2254,9 @@
                         "odometerDelta": -2000,
                         "sameVersion": true,
                         "sameRegion": true
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     },
                     {
                       "portal": "chileautos",
@@ -2263,7 +2277,9 @@
                         "odometerDelta": 5000,
                         "sameVersion": true,
                         "sameRegion": false
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     }
                   ],
                   "model": {
@@ -2629,7 +2645,9 @@
                             "odometerDelta": -2000,
                             "sameVersion": true,
                             "sameRegion": true
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         },
                         {
                           "portal": "chileautos",
@@ -2650,7 +2668,9 @@
                             "odometerDelta": 5000,
                             "sameVersion": true,
                             "sameRegion": false
-                          }
+                          },
+                          "versionIdentified": true,
+                          "regionIdentified": true
                         }
                       ],
                       "model": {
@@ -3012,7 +3032,9 @@
                         "odometerDelta": -2000,
                         "sameVersion": true,
                         "sameRegion": true
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     },
                     {
                       "portal": "chileautos",
@@ -3033,7 +3055,9 @@
                         "odometerDelta": 5000,
                         "sameVersion": true,
                         "sameRegion": false
-                      }
+                      },
+                      "versionIdentified": true,
+                      "regionIdentified": true
                     }
                   ],
                   "model": {
@@ -3715,6 +3739,131 @@
             "schemaVersion": "future-result-v3",
             "customMetric": 42,
             "payload": "freeform"
+          }
+        },
+        "retry": {
+          "retryable": false,
+          "maxRetries": 0
+        }
+      }
+    },
+    {
+      "id": "order-completed-resolution-null",
+      "request": {
+        "method": "GET",
+        "path": "/v1/orders/ordb2b_resolution_null"
+      },
+      "responses": [
+        {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "data": {
+              "orderId": "ordb2b_resolution_null",
+              "reportType": "general-price",
+              "status": "COMPLETED",
+              "result": {
+                "schemaVersion": "report-result-v2",
+                "localization": {
+                  "locale": "es-CL",
+                  "timeZone": "America/Santiago",
+                  "dateFormat": "dd-MM-yyyy",
+                  "distanceUnit": "km",
+                  "currency": {
+                    "code": "CLP",
+                    "name": "Peso chileno",
+                    "symbol": "$",
+                    "symbolPosition": "BEFORE",
+                    "decimals": 0,
+                    "decimalSeparator": ",",
+                    "groupSeparator": "."
+                  }
+                },
+                "vehicle": {
+                  "mark": "Toyota",
+                  "model": "Yaris",
+                  "year": 2021,
+                  "version": "1.5",
+                  "versionApplied": false
+                },
+                "resolution": {
+                  "catalogVersion": null,
+                  "sourceCatalogVersion": null,
+                  "referenceYear": 2026,
+                  "fields": {
+                    "model": {"value": "Yaris", "source": "INFERRED"},
+                    "version": {"value": "", "source": "INFERRED"},
+                    "region": {"value": "", "source": "NATIONAL"},
+                    "odometer": {"value": 50000, "source": "PROVIDED"}
+                  },
+                  "selected": null,
+                  "alternatives": []
+                },
+                "sections": {
+                  "price": {
+                    "schema": "price-v2",
+                    "status": "UNAVAILABLE"
+                  }
+                }
+              }
+            },
+            "apiRequestId": "req-resolution-null",
+            "executionId": "exec-resolution-null",
+            "durationMs": 1
+          }
+        }
+      ],
+      "expected": {
+        "kind": "value",
+        "value": {
+          "orderId": "ordb2b_resolution_null",
+          "reportType": "general-price",
+          "status": "COMPLETED",
+          "result": {
+            "schemaVersion": "report-result-v2",
+            "localization": {
+              "locale": "es-CL",
+              "timeZone": "America/Santiago",
+              "dateFormat": "dd-MM-yyyy",
+              "distanceUnit": "km",
+              "currency": {
+                "code": "CLP",
+                "name": "Peso chileno",
+                "symbol": "$",
+                "symbolPosition": "BEFORE",
+                "decimals": 0,
+                "decimalSeparator": ",",
+                "groupSeparator": "."
+              }
+            },
+            "vehicle": {
+              "mark": "Toyota",
+              "model": "Yaris",
+              "year": 2021,
+              "version": "1.5",
+              "versionApplied": false
+            },
+            "resolution": {
+              "catalogVersion": null,
+              "sourceCatalogVersion": null,
+              "referenceYear": 2026,
+              "fields": {
+                "model": {"value": "Yaris", "source": "INFERRED"},
+                "version": {"value": "", "source": "INFERRED"},
+                "region": {"value": "", "source": "NATIONAL"},
+                "odometer": {"value": 50000, "source": "PROVIDED"}
+              },
+              "selected": null,
+              "alternatives": []
+            },
+            "sections": {
+              "price": {
+                "schema": "price-v2",
+                "status": "UNAVAILABLE"
+              }
+            }
           }
         },
         "retry": {

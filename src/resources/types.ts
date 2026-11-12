@@ -324,10 +324,10 @@ export interface ResolutionFields {
  * y no incluye `versionConfidence` ni `versionBasis`.
  */
 export interface ResultResolution {
-  /** Versión del catálogo vehicular utilizada para la resolución. */
-  catalogVersion: string;
-  /** Versión del catálogo de origen de los datos. */
-  sourceCatalogVersion: string;
+  /** Versión del catálogo vehicular utilizada para la resolución. `null` cuando el informe se generó sin resolución. */
+  catalogVersion: string | null;
+  /** Versión del catálogo de origen de los datos. `null` cuando el informe se generó sin resolución. */
+  sourceCatalogVersion: string | null;
   /** Versión de la curva de kilometraje utilizada en inferencias, si aplica. */
   usageCurveVersion?: string | undefined;
   /** Año de fabricación de referencia utilizado. */
@@ -336,8 +336,8 @@ export interface ResultResolution {
   search?: string | undefined;
   /** Detalle campo a campo de los valores y fuentes aplicadas. */
   fields: ResultResolutionFields;
-  /** Versión candidata seleccionada como coincidencia definitiva. */
-  selected: ResolutionCandidate;
+  /** Versión candidata seleccionada como coincidencia definitiva. `null` cuando el informe se generó sin resolución. */
+  selected: ResolutionCandidate | null;
   /** Otras versiones candidatas consideradas durante la evaluación. */
   alternatives: ResolutionCandidate[];
   [key: string]: unknown;

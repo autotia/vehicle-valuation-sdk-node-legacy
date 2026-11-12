@@ -700,7 +700,7 @@ interface ReportSection<S extends string, T> {
    - `sample` (opcional): Conteos de muestra observados por tipo de vendedor.
 
 2. **`comparables` (`comparables-v1`)** — *Presente en informes de tasación B2B (`general-price`)*:
-   - `items`: Lista de hasta 5 publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `version`, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`). `versionIdentified` y `regionIdentified` son opcionales en el tipo; en informes nuevos indican si se identificó el valor asociado. Si son `false`, el valor correspondiente es `""`. En informes históricos que no incluyen estos campos, use `version !== ""` o `region !== ""` para determinar si el dato está identificado. Opcionalmente incluye `imageUrl` (URL de la imagen de la publicación); se omite cuando la publicación no tiene imagen.
+   - `items`: Lista de hasta 5 publicaciones observadas en portales chilenos. Cada comparable incluye `portal`, `publicationId`, `url`, `price` en CLP, `year`, `odometer` en km, `version`, `region`, `sellerType` (`dealer` o `private`), fechas de observación, indicador `distant: boolean` (si fue incluido para cumplir la cuota mínima de comparables) y diferencias `diff` (`yearDelta`, `odometerDelta`, `sameVersion`, `sameRegion`). `versionIdentified` y `regionIdentified` (booleanos obligatorios) indican si se identificó la versión o región de la publicación. Cuando son `false`, el valor correspondiente es `""`. Opcionalmente incluye `imageUrl` (URL de la imagen de la publicación); se omite cuando la publicación no tiene imagen.
    - `model`: Algoritmo y día lógico de búsqueda de comparables.
    - `selection`: Métricas de candidatos evaluados y tolerancias.
 
@@ -1113,6 +1113,8 @@ La versión 5.0 concentra la confianza de selección en `versionConfidence` y `v
 | `outcome: "no_evidence"` en la inferencia de versión | Eliminado: hoy es `matched`, con `versionConfidence` que indica qué tan confiable es la elección |
 | `versionConfidence` y `versionBasis` opcionales | Obligatorios cuando `outcome` es `matched`; ausentes con `no_match`; opcionales solo en `OrderStatus.resolution` de pedidos antiguos |
 | `createFromTrimText({ minConfidence })` | `createFromTrimText({ minVersionConfidence })`, por defecto `MEDIUM` |
+| `comparables[].versionIdentified` y `regionIdentified` opcionales | Obligatorios (booleanos): siempre presentes; `true` cuando se identificó, `false` cuando el valor es `""` |
+| `order.result.resolution.catalogVersion`, `sourceCatalogVersion`, `selected` siempre strings/objetos | `string \| null`, `string \| null`, `ResolutionCandidate \| null`: siempre presentes pero pueden ser `null` cuando el informe se generó sin resolución vehicular |
 | `order.result.resolution` expone metadatos de confianza de versión | `ResultResolution` no incluye `versionConfidence` ni `versionBasis`; consúltalos en `order.resolution` |
 
 `createFromTrimText` ahora acepta resultados `matched` con confianza `MEDIUM` por defecto. Lanza `TrimInferenceError` solo para `no_match` o si `versionConfidence` queda bajo el mínimo configurado.

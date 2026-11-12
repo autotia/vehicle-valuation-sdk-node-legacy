@@ -975,7 +975,7 @@ components:
     ComparableItemV1:
       type: object
       additionalProperties: true
-      required: [portal, publicationId, url, price, year, odometer, version, region, sellerType, firstSeenAt, lastSeenAt, distant, diff]
+      required: [portal, publicationId, url, price, year, odometer, version, versionIdentified, region, regionIdentified, sellerType, firstSeenAt, lastSeenAt, distant, diff]
       properties:
         portal: { type: string }
         publicationId: { type: string }
@@ -984,11 +984,11 @@ components:
         year: { type: integer }
         odometer: { type: integer }
         version: { type: string }
-        versionIdentified: { type: boolean, description: 'Opcional en informes históricos. En informes nuevos, false indica que version es ""; si se omite, use version !== "" para inferirlo.' }
+        versionIdentified: { type: boolean, description: 'Indica si se pudo identificar la versión. Cuando es false, version es "".' }
         canonicalVersionKey: { type: string }
         imageUrl: { type: string, format: uri }
         region: { type: string }
-        regionIdentified: { type: boolean, description: 'Opcional en informes históricos. En informes nuevos, false indica que region es ""; si se omite, use region !== "" para inferirlo.' }
+        regionIdentified: { type: boolean, description: 'Indica si se pudo identificar la región. Cuando es false, region es "".' }
         sellerType: { type: string, enum: [dealer, private] }
         firstSeenAt: { type: string, format: date-time }
         lastSeenAt: { type: string, format: date-time }
@@ -1467,8 +1467,8 @@ components:
       additionalProperties: true
       required: [catalogVersion, sourceCatalogVersion, referenceYear, fields, selected, alternatives]
       properties:
-        catalogVersion: { type: string }
-        sourceCatalogVersion: { type: string }
+        catalogVersion: { type: string, nullable: true, description: 'Versión del catálogo utilizada. null cuando el informe se generó sin resolución.' }
+        sourceCatalogVersion: { type: string, nullable: true, description: 'Versión del catálogo de origen. null cuando el informe se generó sin resolución.' }
         usageCurveVersion: { type: string }
         referenceYear: { type: integer }
         search: { type: string }
@@ -1484,7 +1484,10 @@ components:
               $ref: '#/components/schemas/ResolvedNumberField'
               description: Kilometraje resuelto del vehículo en kilómetros.
         selected:
-          $ref: '#/components/schemas/ResolutionCandidate'
+          allOf:
+            - $ref: '#/components/schemas/ResolutionCandidate'
+          nullable: true
+          description: 'Versión candidata seleccionada. null cuando el informe se generó sin resolución.'
         alternatives:
           type: array
           items: { $ref: '#/components/schemas/ResolutionCandidate' }

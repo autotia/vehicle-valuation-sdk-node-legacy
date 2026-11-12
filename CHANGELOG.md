@@ -7,6 +7,8 @@ Versión mayor: una sola medida pública de confianza de versión y helper basad
 - **Cambio incompatible:** se eliminan `certainty`, `ResolutionCertainty`, `topMargin` y `score` de los tipos de resolución, inferencia y candidatos. En `order.result.resolution`, `ResultResolution` tampoco tipa esos campos.
 - `versionConfidence` y `versionBasis` son obligatorios para resultados `matched` de inferencia y resolución; en pedidos antiguos consultados con `GET`, se permiten omitidos. `TrimInferenceResult.outcome` queda en `matched` | `no_match`.
 - **Cambio incompatible:** `createFromTrimText` elimina `minConfidence` y agrega `minVersionConfidence`, con niveles `EXACT` > `HIGH` > `MEDIUM` > `LOW` y valor por defecto `MEDIUM`.
+- **Cambio incompatible:** `ComparableItem.versionIdentified` y `regionIdentified` pasan a ser obligatorios (`boolean`, no opcionales). En informes nuevos, `true` indica versión o región identificadas; `false` indica cadenas vacías.
+- **Cambio incompatible:** en `ResultResolution`, `catalogVersion`, `sourceCatalogVersion` y `selected` pueden ser `null` cuando el informe se generó sin resolución vehicular. Siempre están presentes (no son opcionales).
 - README, OpenAPI y fixtures de conformidad actualizados; guía de migración de 4.x a 5.0.
 
 ## [4.0.0] - 2026-11-11
