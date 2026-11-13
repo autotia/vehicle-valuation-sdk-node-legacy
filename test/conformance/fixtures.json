@@ -3793,10 +3793,10 @@
                   "sourceCatalogVersion": null,
                   "referenceYear": 2026,
                   "fields": {
-                    "model": {"value": "Yaris", "source": "INFERRED"},
-                    "version": {"value": "", "source": "INFERRED"},
-                    "region": {"value": "", "source": "NATIONAL"},
-                    "odometer": {"value": 50000, "source": "PROVIDED"}
+                    "model": { "value": "Yaris", "source": "INFERRED" },
+                    "version": { "value": "", "source": "INFERRED" },
+                    "region": { "value": "", "source": "NATIONAL" },
+                    "odometer": { "value": 50000, "source": "PROVIDED" }
                   },
                   "selected": null,
                   "alternatives": []
@@ -3850,10 +3850,10 @@
               "sourceCatalogVersion": null,
               "referenceYear": 2026,
               "fields": {
-                "model": {"value": "Yaris", "source": "INFERRED"},
-                "version": {"value": "", "source": "INFERRED"},
-                "region": {"value": "", "source": "NATIONAL"},
-                "odometer": {"value": 50000, "source": "PROVIDED"}
+                "model": { "value": "Yaris", "source": "INFERRED" },
+                "version": { "value": "", "source": "INFERRED" },
+                "region": { "value": "", "source": "NATIONAL" },
+                "odometer": { "value": 50000, "source": "PROVIDED" }
               },
               "selected": null,
               "alternatives": []
