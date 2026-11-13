@@ -21,7 +21,6 @@ async function testConsumer(client) {
       const locale = data.localization.locale;
       const currencyCode = data.localization.currency.code;
       const mark = data.vehicle.mark;
-      const resCertainty = data.resolution.certainty;
       const resVersionConfidence = order.resolution?.versionConfidence;
       const resVersionBasis = order.resolution?.versionBasis;
       const resolvedModel = data.resolution.fields.model.value;

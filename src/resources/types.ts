@@ -87,7 +87,7 @@ export interface OrderResultVehicle {
   version: string;
   /** Versión canónica del catálogo oficial; puede omitirse si no fue homologada. */
   canonicalVersion?: string | undefined;
-  /** Método de resolución de versión aplicado (por ejemplo 'MATCHED', 'FALLBACK'); se omite si no está disponible. */
+  /** Método de resolución de versión aplicado (por ejemplo 'unique', 'ambiguous', 'unresolved'); se omite si no está disponible. */
   versionResolution?: string | undefined;
   /** Indica si la versión resuelta influyó directamente en el modelo de tasación. */
   versionApplied: boolean;
@@ -205,12 +205,9 @@ export interface OrderStatus {
   /** Motivo del fallo cuando el estado es 'FAILED'. */
   failure?: OrderFailure | undefined;
   /** Metadatos de resolución del catálogo vehicular. */
-  resolution?: Resolution | undefined;
+  resolution?: OrderStatusResolution | undefined;
   [key: string]: unknown;
 }
-
-/** Nivel de certeza de la homologación en catálogo ('EXACT' | 'HIGH' | 'LOW'). */
-export type ResolutionCertainty = "EXACT" | "HIGH" | "LOW" | string;
 
 /**
  * Nivel de confianza en la identificación de la versión del vehículo ('EXACT' | 'HIGH' | 'MEDIUM' | 'LOW').
@@ -222,7 +219,7 @@ export type ResolutionCertainty = "EXACT" | "HIGH" | "LOW" | string;
  *
  * Nota: El nivel bajo mide la identificación de la versión, no el riesgo de la tasación comercial.
  */
-export type VersionConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | string;
+export type VersionConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW";
 
 /**
  * Criterio o base aplicada para la selección de la versión del vehículo ('TEXT' | 'MOST_COMMON' | 'LOWEST_PRICE' | 'SIMPLEST').
@@ -232,12 +229,7 @@ export type VersionConfidence = "EXACT" | "HIGH" | "MEDIUM" | "LOW" | string;
  * - `LOWEST_PRICE`: Desempate aplicado seleccionando la versión con menor precio mediano de mercado observado.
  * - `SIMPLEST`: Respaldo determinista seleccionando la versión base o más simple del catálogo (menor potencia, transmisión manual, menor equipamiento).
  */
-export type VersionBasis =
-  | "TEXT"
-  | "MOST_COMMON"
-  | "LOWEST_PRICE"
-  | "SIMPLEST"
-  | string;
+export type VersionBasis = "TEXT" | "MOST_COMMON" | "LOWEST_PRICE" | "SIMPLEST";
 
 /** Fuente u origen del valor asignado a un campo resuelto. */
 export type ResolutionFieldSource =
@@ -281,8 +273,6 @@ export interface ResolutionCandidate {
   version: string;
   /** Confianza relativa normalizada de la versión (0 a 100). */
   confidence: number;
-  /** Puntaje bruto asignado por el motor de inferencia. */
-  score: number;
   [key: string]: unknown;
 }
 
@@ -300,21 +290,10 @@ export interface Resolution {
   referenceYear: number;
   /** Texto de búsqueda original en caso de inferencia flexible. */
   search?: string | undefined;
-  /** Nivel de certeza de la resolución ('EXACT', 'HIGH', 'LOW'). */
-  certainty: ResolutionCertainty;
-  /** Margen de ventaja del mejor candidato respecto al segundo en inferencia. */
-  topMargin: number;
-  /**
-   * Nivel de confianza en la identificación de la versión ('EXACT', 'HIGH', 'MEDIUM', 'LOW').
-   * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
-   * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
-   */
-  versionConfidence?: VersionConfidence | undefined;
-  /**
-   * Criterio o base aplicada para la selección de la versión ('TEXT', 'MOST_COMMON', 'LOWEST_PRICE', 'SIMPLEST').
-   * Opcional; se omite cuando no hay coincidencia o si el servidor aún no lo envía.
-   */
-  versionBasis?: VersionBasis | undefined;
+  /** Confianza en la identificación de la versión elegida. */
+  versionConfidence: VersionConfidence;
+  /** Criterio aplicado para seleccionar la versión. */
+  versionBasis: VersionBasis;
   /** Detalle campo a campo de los valores y fuentes aplicadas. */
   fields: ResolutionFields;
   /** Versión candidata seleccionada como coincidencia definitiva. */
@@ -345,25 +324,36 @@ export interface ResolutionFields {
  * y no incluye `versionConfidence` ni `versionBasis`.
  */
 export interface ResultResolution {
-  /** Versión del catálogo vehicular utilizada para la resolución. */
-  catalogVersion: string;
-  /** Versión del catálogo de origen de los datos. */
-  sourceCatalogVersion: string;
+  /** Versión del catálogo vehicular utilizada para la resolución. `null` cuando el informe se generó sin resolución. */
+  catalogVersion: string | null;
+  /** Versión del catálogo de origen de los datos. `null` cuando el informe se generó sin resolución. */
+  sourceCatalogVersion: string | null;
   /** Versión de la curva de kilometraje utilizada en inferencias, si aplica. */
   usageCurveVersion?: string | undefined;
   /** Año de fabricación de referencia utilizado. */
   referenceYear: number;
   /** Texto de búsqueda original en caso de inferencia flexible. */
   search?: string | undefined;
-  /** Nivel de certeza de la resolución ('EXACT', 'HIGH', 'LOW'). */
-  certainty: ResolutionCertainty;
-  /** Margen de ventaja del mejor candidato respecto al segundo en inferencia. */
-  topMargin: number;
   /** Detalle campo a campo de los valores y fuentes aplicadas. */
   fields: ResultResolutionFields;
-  /** Versión candidata seleccionada como coincidencia definitiva. */
-  selected: ResolutionCandidate;
+  /** Versión candidata seleccionada como coincidencia definitiva. `null` cuando el informe se generó sin resolución. */
+  selected: ResolutionCandidate | null;
   /** Otras versiones candidatas consideradas durante la evaluación. */
+  alternatives: ResolutionCandidate[];
+  [key: string]: unknown;
+}
+
+/** Resolución devuelta al consultar pedidos antiguos que aún no guardaban la confianza de versión. */
+export interface OrderStatusResolution {
+  catalogVersion: string;
+  sourceCatalogVersion: string;
+  usageCurveVersion?: string | undefined;
+  referenceYear: number;
+  search?: string | undefined;
+  versionConfidence?: VersionConfidence | undefined;
+  versionBasis?: VersionBasis | undefined;
+  fields: ResolutionFields;
+  selected: ResolutionCandidate;
   alternatives: ResolutionCandidate[];
   [key: string]: unknown;
 }
@@ -477,11 +467,7 @@ export interface TrimInferenceRequest {
 /**
  * Resultado cualitativo de la inferencia de versión.
  */
-export type TrimInferenceOutcome =
-  | "matched"
-  | "no_evidence"
-  | "no_match"
-  | string;
+export type TrimInferenceOutcome = "matched" | "no_match";
 
 /**
  * Versión inferida con su nivel de preferencia y puntaje.
@@ -491,34 +477,32 @@ export interface InferredTrim {
   version: string;
   /** Preferencia relativa entre las opciones evaluadas (0 a 100, suma 100 sobre el total). */
   confidence: number;
-  /** Puntaje de coincidencia normalizado. */
-  score: number;
   [key: string]: unknown;
 }
 
 /**
  * Respuesta del endpoint de inferencia de versión de catálogo.
  */
-export interface TrimInferenceResult {
+export type TrimInferenceResult =
+  | (TrimInferenceResultBase & {
+      outcome: "matched";
+      versionConfidence: VersionConfidence;
+      versionBasis: VersionBasis;
+      versions: [InferredTrim, ...InferredTrim[]];
+    })
+  | (TrimInferenceResultBase & {
+      outcome: "no_match";
+      versionConfidence?: never;
+      versionBasis?: never;
+    });
+
+interface TrimInferenceResultBase {
   /** Versión del catálogo utilizada. */
   catalogVersion: string;
-  /** Resultado del proceso de inferencia ('matched', 'no_evidence', 'no_match'). */
+  /** Resultado del proceso de inferencia. */
   outcome: TrimInferenceOutcome;
   /** Total de candidatos compatibles encontrados. */
   totalCandidates: number;
-  /** Diferencia de puntaje entre el primer y segundo candidato. */
-  topMargin: number;
-  /**
-   * Nivel de confianza en la identificación de la versión ('EXACT', 'HIGH', 'MEDIUM', 'LOW').
-   * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
-   * El nivel bajo mide la identificación de la versión, no el riesgo de la tasación.
-   */
-  versionConfidence?: VersionConfidence | undefined;
-  /**
-   * Criterio o base aplicada para la selección de la versión ('TEXT', 'MOST_COMMON', 'LOWEST_PRICE', 'SIMPLEST').
-   * Opcional; se omite con outcome 'no_match' o si el servidor aún no lo envía.
-   */
-  versionBasis?: VersionBasis | undefined;
   /** Versiones candidatas ordenadas por preferencia decreciente. */
   versions: InferredTrim[];
   [key: string]: unknown;
@@ -593,8 +577,6 @@ export interface MarkCandidate {
   name: string;
   /** Confianza relativa asignada a la marca (0 a 100). */
   confidence: number;
-  /** Puntaje de afinidad textual. */
-  score: number;
   [key: string]: unknown;
 }
 
@@ -608,8 +590,6 @@ export interface MarkInferenceResult {
   outcome: "matched" | "no_match" | string;
   /** Cantidad total de marcas coincidentes evaluadas. */
   totalCandidates: number;
-  /** Margen entre los dos mejores candidatos. */
-  topMargin: number;
   /** Lista de marcas sugeridas ordenadas por afinidad. */
   marks: MarkCandidate[];
   [key: string]: unknown;
@@ -639,8 +619,6 @@ export interface ModelCandidate {
   name: string;
   /** Confianza relativa del modelo (0 a 100). */
   confidence: number;
-  /** Puntaje de afinidad textual. */
-  score: number;
   [key: string]: unknown;
 }
 
@@ -654,8 +632,6 @@ export interface ModelInferenceResult {
   outcome: "matched" | "no_match" | string;
   /** Total de candidatos evaluados. */
   totalCandidates: number;
-  /** Margen de ventaja del primer candidato. */
-  topMargin: number;
   /** Modelos sugeridos ordenados por afinidad. */
   models: ModelCandidate[];
   [key: string]: unknown;
@@ -685,8 +661,8 @@ export interface OrderFromTrimTextRequest {
  * Opciones adicionales para el método createFromTrimText.
  */
 export interface OrderFromTrimTextOptions extends CallOptions {
-  /** Umbral mínimo de confianza relativa (0 a 100) requerido en el candidato principal para proceder con la creación. */
-  minConfidence?: number | undefined;
+  /** Confianza mínima de versión aceptada. Por defecto es "MEDIUM". */
+  minVersionConfidence?: VersionConfidence | undefined;
 }
 
 /**

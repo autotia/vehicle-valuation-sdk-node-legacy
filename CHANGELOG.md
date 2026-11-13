@@ -1,8 +1,17 @@
 # Registro de cambios
 
-## [4.0.0] - Unreleased
+## [5.0.0] - 2026-11-12
 
-Versión mayor: los tipos y el mapeo del SDK se alinean con lo que la API emite realmente. No se conservan alias ni campos obsoletos.
+Versión mayor: una sola medida pública de confianza de versión y helper basado en niveles cualitativos. No se conservan alias ni compatibilidad con opciones retiradas.
+
+- **Cambio incompatible:** se eliminan `certainty`, `ResolutionCertainty`, `topMargin` y `score` de los tipos de resolución, inferencia y candidatos. Estos campos ya no se informan en ninguna respuesta de la API, incluido `order.result.resolution`.
+- `versionConfidence` y `versionBasis` son obligatorios para resultados `matched` de inferencia y resolución; en pedidos antiguos consultados con `GET`, se permiten omitidos. `TrimInferenceResult.outcome` queda en `matched` | `no_match`.
+- **Cambio incompatible:** `createFromTrimText` elimina `minConfidence` y agrega `minVersionConfidence`, con niveles `EXACT` > `HIGH` > `MEDIUM` > `LOW` y valor por defecto `MEDIUM`.
+- **Cambio incompatible:** `ComparableItem.versionIdentified` y `regionIdentified` pasan a ser obligatorios (`boolean`, no opcionales). En informes nuevos, `true` indica versión o región identificadas; `false` indica cadenas vacías.
+- **Cambio incompatible:** en `ResultResolution`, `catalogVersion`, `sourceCatalogVersion` y `selected` pueden ser `null` cuando el informe se generó sin resolución vehicular. Siempre están presentes (no son opcionales).
+- README, OpenAPI y fixtures de conformidad actualizados; guía de migración de 4.x a 5.0.
+
+## [4.0.0] - 2026-11-11
 
 - `versionConfidence` admite el nuevo valor `EXACT` (la versión llegó explícita y existe en el catálogo): `EXACT` | `HIGH` | `MEDIUM` | `LOW`.
 - `versionBasis` admite el nuevo valor `MOST_COMMON` (se eligió la versión con más avisos del mercado): `TEXT` | `MOST_COMMON` | `LOWEST_PRICE` | `SIMPLEST`.
@@ -25,7 +34,7 @@ Versión mayor: los tipos y el mapeo del SDK se alinean con lo que la API emite 
 - `comparables[].versionIdentified` y `comparables[].regionIdentified` (opcionales): indican si se identificaron la versión y la región; en informes históricos ausentes, se interpretan mediante las cadenas `version` y `region`.
 - La sección `comparables` incluye como máximo 5 publicaciones por informe.
 
-## [3.0.0] - Unreleased
+## [3.0.0] - 2026-11-05
 
 - Migración al resultado modular `report-result-v2`: el resultado de tasación se estructura en secciones independientes bajo `order.result.data.sections`.
 - Secciones modulares tipadas:
@@ -42,11 +51,11 @@ Versión mayor: los tipos y el mapeo del SDK se alinean con lo que la API emite 
 - Remoción de esquemas y tipos monolíticos obsoletos de la versión 1.x (`general-price-result-v1`).
 - Actualización de especificación OpenAPI y suite de pruebas de conformidad con casos de secciones modulares y compatibilidad de esquemas futuros.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-10-27
 
 - `orders.create` admite identificación por `search`, kilometraje y región opcionales, y devuelve `resolution`.
 - Se agregan `catalog.resolveVehicle`, `catalog.inferMark` y `catalog.inferModel`.
-- La inferencia de versión incluye `score` y `topMargin`.
+- La inferencia de versión incluye el puntaje de selección y el margen entre alternativas.
 
 ## [1.0.1] - 2026-10-20
 

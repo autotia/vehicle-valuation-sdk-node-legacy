@@ -94,7 +94,7 @@ export type PriceFreshness = {
   lastValidLogicalDay: string;
   /** Antigüedad de los datos en días respecto al día de cálculo. */
   ageDays: number;
-  /** Estado de vigencia de los datos (por ejemplo 'CURRENT', 'STALE'). */
+  /** Estado de vigencia de los datos (por ejemplo 'FRESH', 'AGED', 'STALE'). */
   status: string;
 };
 

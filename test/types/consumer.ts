@@ -29,14 +29,11 @@ export async function testTypeScriptConsumer(
       const decimals: number = resultData.localization.currency.decimals;
       const mark: string = resultData.vehicle.mark;
       const versionApplied: boolean = resultData.vehicle.versionApplied;
-      const certainty: string = resultData.resolution.certainty;
       const versionConf: VersionConfidence | undefined =
         order.resolution?.versionConfidence;
       const versionBasis: VersionBasis | undefined =
         order.resolution?.versionBasis;
       const odoResolved: number = resultData.resolution.fields.odometer.value;
-      const odoOrderLevel: number | undefined =
-        order.resolution?.fields.odometerKm.value;
 
       void [
         schemaVer,
@@ -45,11 +42,9 @@ export async function testTypeScriptConsumer(
         decimals,
         mark,
         versionApplied,
-        certainty,
         versionConf,
         versionBasis,
         odoResolved,
-        odoOrderLevel,
       ];
 
       // 2. Sección price: opcionalidad explícita y tipos numéricos

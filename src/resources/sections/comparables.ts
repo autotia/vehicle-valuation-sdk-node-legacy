@@ -31,11 +31,10 @@ export type ComparableItem = {
   /** Versión del vehículo informada en la publicación. */
   version: string;
   /**
-   * Indica si se pudo identificar la versión de la publicación. En informes nuevos, cuando es `true`,
-   * `version` contiene una cadena no vacía; cuando es `false`, `version` es `""`. El campo se omite
-   * en informes históricos: si no está presente, determine si se identificó usando `version !== ""`.
+   * Indica si se pudo identificar la versión de la publicación. Cuando es `true`,
+   * `version` contiene una cadena no vacía; cuando es `false`, `version` es `""`.
    */
-  versionIdentified?: boolean | undefined;
+  versionIdentified: boolean;
   /** Clave canónica de versión en catálogo si fue resuelta. */
   canonicalVersionKey?: string | undefined;
   /** URL de la imagen de la publicación. Opcional: se omite cuando la publicación no tiene imagen. */
@@ -43,11 +42,10 @@ export type ComparableItem = {
   /** Región geográfica donde se ubica la publicación. */
   region: string;
   /**
-   * Indica si se pudo identificar la región de la publicación. En informes nuevos, cuando es `true`,
-   * `region` contiene una cadena no vacía; cuando es `false`, `region` es `""`. El campo se omite
-   * en informes históricos: si no está presente, determine si se identificó usando `region !== ""`.
+   * Indica si se pudo identificar la región de la publicación. Cuando es `true`,
+   * `region` contiene una cadena no vacía; cuando es `false`, `region` es `""`.
    */
-  regionIdentified?: boolean | undefined;
+  regionIdentified: boolean;
   /** Tipo de vendedor de la publicación ('dealer' o 'private'). */
   sellerType: "dealer" | "private" | string;
   /** Fecha y hora de primera captura de la publicación en formato ISO 8601. */
